@@ -1,0 +1,53 @@
+services:
+  mongo:
+    image: mongo:6.0
+    container_name: airware_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  backend:
+    build:
+      context: ./AQI/backend
+    container_name: airware_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017
+      - OPENAQ_API_KEY=
+      - OPENWEATHER_API_KEY=
+      - SECRET_KEY=airware-secret-key
+    depends_on:
+      - mongo
+    platform: linux/amd64
+
+  chatbot:
+    build: ./AQI/chatbot
+    platform: linux/amd64
+    container_name: airware_chatbot
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./AQI/chatbot/.env
+    depends_on:
+      - backend
+
+  frontend:
+    build: ./AQI/front
+    container_name: airware_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_CHATBOT_URL=http://localhost:8001
+    depends_on:
+      - backend
+      - chatbot
+
+volumes:
+  mongo-data:
+    name: airware_mongo_data

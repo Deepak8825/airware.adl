@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+dist/
+.eggs/
+.pytest_cache/
+
+# Virtualenv
+.venv/
+venv/
+ENV/
+.env
+.env.*
+
+# Node
+node_modules/
+.npm/
+.next/
+
+# Logs
+*.log
+
+# Editor
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+coverage/
+coverage.*
+
+# Local files
+start_airware.bat
+start_frontend.bat
+start_backend.bat
+
+# Ignore memory file if present
+memory.json
+
+# Ignore compiled Next files
+.next/
+
+# Ignore package lock or yarn lock if you prefer
+# package-lock.json
+# yarn.lock

@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pymongo
+python-dotenv
+requests
+apscheduler
+python-multipart
+openai
+PyJWT
+passlib[bcrypt]
