@@ -8,3 +8,5 @@ python-multipart
 openai
 PyJWT
 passlib[bcrypt]
+certifi
+dnspython

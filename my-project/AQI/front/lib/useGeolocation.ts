@@ -105,23 +105,26 @@ export const useGeolocation = () => {
       localStorage.setItem('userLocation', JSON.stringify(locationData));
       
       return locationData;
-    } catch (error: any) {
+    } catch (error: unknown) {
       let errorMessage = 'Failed to get location';
-      
-      if (error.code) {
-        switch (error.code) {
-          case 1:
+
+      if (typeof error === 'object' && error !== null && 'code' in error) {
+        const geolocationError = error as GeolocationPositionError;
+        switch (geolocationError.code) {
+          case geolocationError.PERMISSION_DENIED:
             errorMessage = 'Location access denied by user';
             break;
-          case 2:
+          case geolocationError.POSITION_UNAVAILABLE:
             errorMessage = 'Location information unavailable';
             break;
-          case 3:
+          case geolocationError.TIMEOUT:
             errorMessage = 'Location request timed out';
             break;
           default:
-            errorMessage = error.message || 'Unknown location error';
+            errorMessage = geolocationError.message || 'Unknown location error';
         }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
       }
 
       setState(prev => ({

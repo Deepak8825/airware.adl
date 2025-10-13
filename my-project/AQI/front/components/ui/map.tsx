@@ -1,11 +1,12 @@
 "use client";
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from "react-leaflet";
+import { MapContainer, TileLayer, Popup, CircleMarker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useState } from "react";
 
 // Fix for default marker icons in Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+const defaultIconProto = L.Icon.Default.prototype as unknown as { _getIconUrl?: () => string };
+delete defaultIconProto._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
   iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
@@ -154,7 +155,6 @@ const IndiaMap = () => {
     );
   }
 
-  // Use any casts for MapContainer props to avoid strict leaflet prop typing issues in this demo
   return (
     <div className="space-y-4">
       <div className="mb-4">
@@ -162,25 +162,26 @@ const IndiaMap = () => {
         <p className="text-gray-600">Showing real-time Air Quality Index (AQI) data. Larger markers indicate higher pollution levels.</p>
       </div>
       <MapContainer
-        {...({ center: [20.5937, 78.9629], zoom: 5, style: { height: "500px", width: "100%" }, className: "rounded-lg z-0 shadow-md" } as any)}
+        center={[20.5937, 78.9629]}
+        zoom={5}
+        style={{ height: "500px", width: "100%" }}
+        className="rounded-lg z-0 shadow-md"
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          {...({ attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' } as any)}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         {Array.isArray(aqiData) && aqiData.map((point, index) => (
           <CircleMarker
             key={index}
-            {...({ 
-              center: [point.lat, point.lng], 
-              radius: point.aqi > 200 ? 15 : point.aqi > 150 ? 12 : 10,
-              pathOptions: { 
-                color: getMarkerColor(point.aqi), 
-                fillColor: getMarkerColor(point.aqi), 
-                fillOpacity: 0.8,
-                weight: point.aqi > 200 ? 2 : 1 
-              } 
-            } as any)}
+            center={[point.lat, point.lng]}
+            radius={point.aqi > 200 ? 15 : point.aqi > 150 ? 12 : 10}
+            pathOptions={{
+              color: getMarkerColor(point.aqi),
+              fillColor: getMarkerColor(point.aqi),
+              fillOpacity: 0.8,
+              weight: point.aqi > 200 ? 2 : 1,
+            }}
           >
             <Popup>
               <div className="p-3">

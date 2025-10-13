@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Bell, Globe, Moon, Sun, Shield, Info, Check } from "lucide-react"
-import { useLanguage, Language, getLanguageDisplayName } from "@/contexts/LanguageContext"
+import { ArrowLeft, Bell, Globe, Moon, Sun, Shield, Info, Check, User, LogOut } from "lucide-react"
+import { useLanguage, Language } from "@/contexts/LanguageContext"
 import { useTheme } from "@/contexts/ThemeContext"
 
 export default function Settings() {
@@ -37,7 +37,7 @@ export default function Settings() {
   )
 
   // load profile from localStorage
-  const [profile, setProfile] = useState<{email?:string;name?:string;} | null>(null);
+  const [profile, setProfile] = useState<{ email?: string; name?: string } | null>(null)
 
   useEffect(() => {
     try {
@@ -48,10 +48,10 @@ export default function Settings() {
 
   const handleLogout = () => {
     try {
-      localStorage.removeItem('token');
-      localStorage.removeItem('profile');
+      localStorage.removeItem('token')
+      localStorage.removeItem('profile')
     } catch {}
-    window.location.href = '/';
+    window.location.href = '/'
   }
 
   return (
@@ -71,6 +71,38 @@ export default function Settings() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
+
+          {/* Account Card */}
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20 dark:border-gray-700/20 hover:shadow-2xl transition-all duration-300">
+            <div className="flex items-center mb-6">
+              <div className="p-3 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg">
+                <User className="w-6 h-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Account</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Manage your profile and access</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border border-blue-200 dark:border-blue-700/40 p-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Signed in as</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {profile?.name || 'Airware User'}
+                </p>
+                {profile?.email && (
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{profile.email}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 text-white font-medium shadow-lg hover:from-red-600 hover:to-rose-600 transition-all duration-300"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign out
+              </button>
+            </div>
+          </div>
           
           {/* Language Card */}
           <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20 dark:border-gray-700/20 hover:shadow-2xl transition-all duration-300">

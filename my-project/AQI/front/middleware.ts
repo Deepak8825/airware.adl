@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
 // Middleware kept as a neutral no-op so removed auth routes don't get redirected to.
-export function middleware(_req: NextRequest) {
+export function middleware() {
   return NextResponse.next();
 }
 

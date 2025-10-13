@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Star, Send, MessageSquare, TrendingUp, Bug, Lightbulb, Heart, CheckCircle } from "lucide-react"
+import { ArrowLeft, Star, Send, MessageSquare, TrendingUp, Bug, Lightbulb, CheckCircle } from "lucide-react"
 import { useLanguage } from "@/contexts/LanguageContext"
 
 interface FeedbackData {

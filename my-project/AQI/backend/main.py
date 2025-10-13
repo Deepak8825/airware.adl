@@ -1,18 +1,25 @@
-from fastapi import FastAPI, HTTPException, Depends, Query, Request
-from fastapi.middleware.cors import CORSMiddleware
-from pymongo import MongoClient
-from pymongo.errors import DuplicateKeyError
-from pydantic import BaseModel
-import requests
-import os
+from datetime import datetime, timedelta
+from typing import Optional, List
+
+import certifi
 import jwt
 import logging
-from datetime import datetime, timedelta
+import os
+import requests
+
 from apscheduler.schedulers.background import BackgroundScheduler
+from bson import ObjectId
+from bson.errors import InvalidId
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from passlib.context import CryptContext
-import json
-import sqlite3
-from pathlib import Path
+from pymongo import MongoClient
+from pymongo.errors import DuplicateKeyError
+from pydantic import BaseModel, EmailStr
+
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -31,9 +38,150 @@ app.add_middleware(
 # Security setup
 SECRET_KEY = os.getenv("SECRET_KEY", "airware-secret-key")
 ALGORITHM = "HS256"
-scheduler = BackgroundScheduler()
-scheduler.add_job(fetch_aqi_data, 'interval', minutes=15)
-scheduler.start()
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+token_auth_scheme = HTTPBearer(auto_error=False)
+
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    language: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    occupation: Optional[str] = None
+    interestedInPrediction: Optional[bool] = None
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserProfile(BaseModel):
+    id: str
+    name: str
+    email: EmailStr
+    language: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    occupation: Optional[str] = None
+    interestedInPrediction: Optional[bool] = None
+
+
+class FeedbackData(BaseModel):
+    rating: int
+    category: str
+    usageFrequency: Optional[str] = None
+    features: Optional[List[str]] = None
+    improvements: Optional[str] = None
+    recommend: Optional[bool] = None
+    additionalFeedback: Optional[str] = None
+
+
+class ChatMessage(BaseModel):
+    content: str
+
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        return False
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_mongo_database() -> Optional[MongoClient]:
+    uri = os.getenv("MONGO_URI")
+    if not uri:
+        uri = "mongodb://localhost:27017/airware"
+
+    try:
+        if uri.startswith("mongodb+srv://"):
+            client = MongoClient(uri, tlsCAFile=certifi.where())
+        else:
+            client = MongoClient(uri)
+
+        db_name = os.getenv("MONGO_DB_NAME")
+        if not db_name:
+            sanitized_uri = uri.split("?")[0]
+            if "/" in sanitized_uri:
+                potential_db = sanitized_uri.rsplit("/", 1)[-1]
+                db_name = potential_db or "airware"
+            else:
+                db_name = "airware"
+
+        database = client[db_name]
+        database.users.create_index("email", unique=True)
+        database.aqi_data.create_index("city", unique=True)
+        database.feedback.create_index("processed")
+        logging.info("Connected to MongoDB database '%s'", db_name)
+        return database
+    except Exception as connection_error:
+        logging.error("Failed to connect to MongoDB: %s", connection_error)
+        return None
+
+
+db = create_mongo_database()
+
+
+def serialize_user(user_document) -> UserProfile:
+    if not user_document:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return UserProfile(
+        id=str(user_document.get("_id")),
+        name=user_document.get("name", ""),
+        email=user_document.get("email", ""),
+        language=user_document.get("language"),
+        city=user_document.get("city"),
+        country=user_document.get("country"),
+        occupation=user_document.get("occupation"),
+        interestedInPrediction=user_document.get("interestedInPrediction"),
+    )
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(token_auth_scheme)) -> UserProfile:
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None or db is None:
+            raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+        try:
+            user_document = db.users.find_one({"_id": ObjectId(user_id)})
+        except (InvalidId, TypeError):
+            raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+        if not user_document:
+            raise HTTPException(status_code=401, detail="User not found")
+
+        return serialize_user(user_document)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
 
 # Define cities for AQI data fetching
 cities = [
@@ -44,36 +192,6 @@ cities = [
 # WAQI API token (free tier allows ~1000 requests/day)
 api_token = "demo"  # Use 'demo' for testing, get your own token from waqi.info
 
-for city in cities:
-    try:
-        # Fetch data from WAQI API
-        url = f"https://api.waqi.info/feed/{city['query']}/"
-        params = {"token": api_token}
-        
-        response = requests.get(url, params=params, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('status') == 'ok':
-                # Process and store the data
-                processed_data = process_waqi_data(city, data['data'])
-                
-                try:
-                    # Store in MongoDB
-                    db.aqi_data.update_one(
-                        {"city": city['name']},
-                        {"$set": processed_data},
-                        upsert=True
-                    )
-                    logging.info(f"Updated AQI data for {city['name']}")
-                except Exception as db_error:
-                    logging.warning(f"Could not store data in MongoDB for {city['name']}: {db_error}")
-            else:
-                logging.warning(f"WAQI API error for {city['name']}: {data.get('data', 'Unknown error')}")
-        else:
-            logging.error(f"Failed to fetch data for {city['name']}: {response.status_code}")
-    except Exception as e:
-        logging.error(f"Error processing {city['name']}: {e}")
-        
 def process_waqi_data(city, data):
     """Process WAQI API results into our format"""
     processed = {
@@ -108,6 +226,44 @@ def process_waqi_data(city, data):
     processed['measurements'] = measurements
     return processed
 
+
+def fetch_aqi_data():
+    """Fetch AQI information for configured cities and store in MongoDB."""
+    for city in cities:
+        try:
+            url = f"https://api.waqi.info/feed/{city['query']}/"
+            params = {"token": api_token}
+
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('status') == 'ok':
+                    processed_data = process_waqi_data(city, data['data'])
+
+                    if db is not None:
+                        try:
+                            db.aqi_data.update_one(
+                                {"city": city['name']},
+                                {"$set": processed_data},
+                                upsert=True
+                            )
+                            logging.info("Updated AQI data for %s", city['name'])
+                        except Exception as db_error:
+                            logging.warning("Could not store data in MongoDB for %s: %s", city['name'], db_error)
+                else:
+                    logging.warning("WAQI API error for %s: %s", city['name'], data.get('data', 'Unknown error'))
+            else:
+                logging.error("Failed to fetch data for %s: %s", city['name'], response.status_code)
+        except Exception as exc:
+            logging.error("Error processing %s: %s", city['name'], exc)
+
+
+# Prime database with initial AQI snapshot and schedule periodic refreshes.
+fetch_aqi_data()
+scheduler = BackgroundScheduler()
+scheduler.add_job(fetch_aqi_data, 'interval', minutes=15)
+scheduler.start()
+
 def calculate_aqi_from_pm25(pm25):
     """Calculate AQI from PM2.5 concentration (US EPA standard)"""
     if pm25 <= 12.0:
@@ -123,9 +279,55 @@ def calculate_aqi_from_pm25(pm25):
     else:
         return int(((500 - 301) / (500.4 - 250.5)) * (pm25 - 250.5) + 301)
 
-scheduler = BackgroundScheduler()
-scheduler.add_job(fetch_aqi_data, 'interval', minutes=15)
-scheduler.start()
+
+# Authentication endpoints
+@app.post("/auth/register", response_model=UserProfile, status_code=201)
+def register_user(payload: RegisterRequest):
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not available")
+
+    user_doc = {
+        "name": payload.name.strip(),
+        "email": payload.email.lower().strip(),
+        "password": get_password_hash(payload.password),
+        "language": payload.language,
+        "city": payload.city,
+        "country": payload.country,
+        "occupation": payload.occupation,
+        "interestedInPrediction": payload.interestedInPrediction,
+        "createdAt": datetime.utcnow().isoformat(),
+    }
+
+    try:
+        insert_result = db.users.insert_one(user_doc)
+        user_doc["_id"] = insert_result.inserted_id
+        return serialize_user(user_doc)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=400, detail="An account with this email already exists")
+    except Exception as exc:
+        logging.error("Error creating user: %s", exc)
+        raise HTTPException(status_code=500, detail="Unable to create account at this time")
+
+
+@app.post("/auth/login", response_model=TokenResponse)
+def login_user(payload: LoginRequest):
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not available")
+
+    user_doc = db.users.find_one({"email": payload.email.lower().strip()})
+    if not user_doc or not verify_password(payload.password, user_doc.get("password", "")):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    access_token = create_access_token({
+        "sub": str(user_doc.get("_id")),
+        "email": user_doc.get("email"),
+    })
+    return TokenResponse(access_token=access_token)
+
+
+@app.get("/auth/me", response_model=UserProfile)
+def read_current_user(current_user: UserProfile = Depends(get_current_user)):
+    return current_user
 
 # API endpoints
 @app.get("/api/aqi")

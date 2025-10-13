@@ -82,7 +82,7 @@ const ChatWidget = () => {
     } catch (error) {
       console.error('Chat error:', error);
       // Network errors (failed to fetch) will be TypeError in browsers
-      if ((error as any)?.name === 'TypeError') {
+      if (error instanceof TypeError) {
         setChatbotAvailable(false);
       }
       const errorMessage: Message = {
