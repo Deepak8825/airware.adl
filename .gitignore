@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Node
+node_modules/
+.next/
+
+# Env files
+*.env
+!*.env.example
+!my-project/AQI/chatbot/.env.example
+
+# Docker
+*.log
+
+# Misc
+.DS_Store
