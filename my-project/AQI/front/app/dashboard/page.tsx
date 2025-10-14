@@ -63,10 +63,23 @@ const Dashboard = () => {
 
   const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
-  const handleLocationUpdate = (locationData: LocationData) => {
-    setUserLocation(locationData);
-    setLocation(`${locationData.city}, ${locationData.country}`);
-  };
+  const handleLocationUpdate = useCallback((locationData: LocationData) => {
+    setUserLocation((previous) => {
+      if (
+        previous &&
+        previous.latitude === locationData.latitude &&
+        previous.longitude === locationData.longitude
+      ) {
+        return previous;
+      }
+      return locationData;
+    });
+
+    setLocation((prev) => {
+      const next = `${locationData.city}, ${locationData.country}`;
+      return prev === next ? prev : next;
+    });
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("airware_token");
@@ -101,7 +114,9 @@ const Dashboard = () => {
     };
 
     verifySession();
-  }, [backendBase, router]);
+    // backendBase is a constant, router is stable from Next.js
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem("airware_token");
@@ -110,6 +125,11 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
+      return;
+    }
+
+    // Don't fetch until we have location data
+    if (!location && !userLocation) {
       return;
     }
 
@@ -164,6 +184,7 @@ const Dashboard = () => {
       }
     };
     fetchAqiData();
+    // backendBase is a constant, no need to include in deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, location, userLocation]);
 

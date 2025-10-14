@@ -7,6 +7,8 @@ apscheduler
 python-multipart
 openai
 PyJWT
-passlib[bcrypt]
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
 certifi
 dnspython
+email-validator

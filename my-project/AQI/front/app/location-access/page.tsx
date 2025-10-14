@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 import { motion } from "framer-motion";
 import LocationWidget from "@/components/LocationWidget";
 import { LocationData } from "@/lib/useGeolocation";
@@ -10,7 +11,7 @@ import { ArrowLeft, Home } from "lucide-react";
 export default function LocationAccess() {
   const router = useRouter();
 
-  const handleLocationUpdate = (locationData: LocationData) => {
+  const handleLocationUpdate = useCallback((locationData: LocationData) => {
     // Store location and redirect to dashboard
     localStorage.setItem('userLocation', JSON.stringify(locationData));
     
@@ -18,7 +19,7 @@ export default function LocationAccess() {
     setTimeout(() => {
       router.push('/');
     }, 2000);
-  };
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-100">
