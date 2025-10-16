@@ -165,23 +165,31 @@ const RegisterPage = () => {
                   {t.auth.register}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-0 space-y-5">
+              <CardContent className="p-0 space-y-6">
                 {error && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-xl border-l-4 border-red-500 bg-red-50 px-5 py-4 text-sm text-red-700 shadow-sm"
+                  >
                     {error}
-                  </div>
+                  </motion.div>
                 )}
                 {success && (
-                  <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-xl border-l-4 border-green-500 bg-green-50 px-5 py-4 text-sm text-green-700 shadow-sm"
+                  >
                     {success}
-                  </div>
+                  </motion.div>
                 )}
 
-                <form className="space-y-4" onSubmit={handleSubmit}>
-                  <div className="grid gap-4 md:grid-cols-2">
+                <form className="space-y-5" onSubmit={handleSubmit}>
+                  <div className="space-y-5">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="name">
-                        {t.auth.name}
+                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1" htmlFor="name">
+                        {t.auth.name} <span className="text-red-500">*</span>
                       </label>
                       <Input
                         id="name"
@@ -189,12 +197,13 @@ const RegisterPage = () => {
                         onChange={(event) => updateField("name", event.target.value)}
                         placeholder="Jane Doe"
                         required
-                        className="h-11"
+                        className="h-12 px-4 text-base border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl transition-all"
                       />
                     </div>
+                    
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="email">
-                        {t.auth.email}
+                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1" htmlFor="email">
+                        {t.auth.email} <span className="text-red-500">*</span>
                       </label>
                       <Input
                         id="email"
@@ -203,15 +212,15 @@ const RegisterPage = () => {
                         onChange={(event) => updateField("email", event.target.value)}
                         placeholder="name@example.com"
                         required
-                        className="h-11"
+                        className="h-12 px-4 text-base border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl transition-all"
                       />
                     </div>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-5 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="password">
-                        {t.auth.password}
+                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1" htmlFor="password">
+                        {t.auth.password} <span className="text-red-500">*</span>
                       </label>
                       <Input
                         id="password"
@@ -220,12 +229,12 @@ const RegisterPage = () => {
                         onChange={(event) => updateField("password", event.target.value)}
                         placeholder="Create password"
                         required
-                        className="h-11"
+                        className="h-12 px-4 text-base border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl transition-all"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="confirmPassword">
-                        {t.auth.confirmPassword}
+                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1" htmlFor="confirmPassword">
+                        {t.auth.confirmPassword} <span className="text-red-500">*</span>
                       </label>
                       <Input
                         id="confirmPassword"
@@ -234,63 +243,68 @@ const RegisterPage = () => {
                         onChange={(event) => updateField("confirmPassword", event.target.value)}
                         placeholder="Repeat password"
                         required
-                        className="h-11"
+                        className="h-12 px-4 text-base border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl transition-all"
                       />
                     </div>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="city">
-                        City
-                      </label>
-                      <Input
-                        id="city"
-                        value={formData.city}
-                        onChange={(event) => updateField("city", event.target.value)}
-                        placeholder="Coimbatore"
-                        className="h-11"
-                      />
+                  <div className="pt-2">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-4">
+                      Optional Information
+                    </p>
+                    <div className="grid gap-5 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="city">
+                          City
+                        </label>
+                        <Input
+                          id="city"
+                          value={formData.city}
+                          onChange={(event) => updateField("city", event.target.value)}
+                          placeholder="Coimbatore"
+                          className="h-12 px-4 text-base border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl transition-all"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="country">
+                          Country
+                        </label>
+                        <Input
+                          id="country"
+                          value={formData.country}
+                          onChange={(event) => updateField("country", event.target.value)}
+                          placeholder="India"
+                          className="h-12 px-4 text-base border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl transition-all"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="country">
-                        Country
-                      </label>
-                      <Input
-                        id="country"
-                        value={formData.country}
-                        onChange={(event) => updateField("country", event.target.value)}
-                        placeholder="India"
-                        className="h-11"
-                      />
-                    </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="occupation">
-                      Occupation
-                    </label>
-                    <Input
-                      id="occupation"
-                      value={formData.occupation}
-                      onChange={(event) => updateField("occupation", event.target.value)}
-                      placeholder="Student, Developer, ..."
-                      className="h-11"
-                    />
+                    <div className="space-y-2 mt-5">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="occupation">
+                        Occupation
+                      </label>
+                      <Input
+                        id="occupation"
+                        value={formData.occupation}
+                        onChange={(event) => updateField("occupation", event.target.value)}
+                        placeholder="Student, Developer, ..."
+                        className="h-12 px-4 text-base border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl transition-all"
+                      />
+                    </div>
                   </div>
 
                   <Button
                     type="submit"
-                    className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                    className="w-full h-13 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-base font-semibold transition-all duration-200 shadow-lg hover:shadow-xl rounded-xl mt-6"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? t.common.loading : t.auth.signUp}
                   </Button>
                 </form>
 
-                <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-center text-sm text-gray-600 dark:text-gray-400 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <span>{t.auth.alreadyHaveAccount} </span>
-                  <Link href="/" className="text-indigo-600 hover:underline">
+                  <Link href="/login" className="text-indigo-600 hover:text-indigo-700 font-semibold hover:underline transition-colors">
                     {t.auth.signIn}
                   </Link>
                 </div>

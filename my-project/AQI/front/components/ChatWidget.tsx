@@ -192,16 +192,16 @@ const ChatWidget = () => {
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder={t.chatbot.placeholder}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 bg-white transition-all"
                   disabled={isLoading}
                 />
                 <button
                   onClick={sendMessage}
                   disabled={!inputValue.trim() || isLoading}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white p-2 rounded-lg transition-colors"
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:bg-gray-300 disabled:from-gray-300 disabled:to-gray-300 text-white p-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:shadow-none"
                   aria-label="Send message"
                 >
-                  <Send size={16} />
+                  <Send size={18} />
                 </button>
               </div>
             </div>
