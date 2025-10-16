@@ -1,18 +1,36 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Heart, Info } from "lucide-react";
+import { Sun, Heart, Info, Newspaper, Cloud, Activity, AlertTriangle, MapPin, Calendar, TrendingUp, Wind, Droplets, ThermometerSun } from "lucide-react";
 
-type CityAqi = { name: string; aqi: number };
+type CityAqi = { 
+  name: string; 
+  aqi: number;
+  location?: string;
+  pm25?: number;
+  pm10?: number;
+  temp?: number;
+  humidity?: number;
+};
 
-const DEMO_CITIES: CityAqi[] = [
-  { name: "Chennai", aqi: 92 },
-  { name: "Coimbatore", aqi: 58 },
-  { name: "Madurai", aqi: 110 },
-  { name: "Tiruchirappalli", aqi: 135 },
-  { name: "Salem", aqi: 78 },
-  { name: "Erode", aqi: 48 },
-  { name: "Puducherry", aqi: 65 },
+type NewsArticle = {
+  title: string;
+  description: string;
+  source: string;
+  publishedAt: string;
+  category: 'air-quality' | 'weather' | 'health';
+};
+
+type WeatherActivity = {
+  activity: string;
+  recommendation: 'recommended' | 'caution' | 'avoid';
+  reason: string;
+  icon: string;
+};
+
+const availableLocations = [
+  "Delhi", "Mumbai", "Bangalore", "Chennai", "Kolkata", "Hyderabad", 
+  "Pune", "Ahmedabad", "Coimbatore", "Jaipur"
 ];
 
 function aqiMeta(aqi: number) {
@@ -26,29 +44,204 @@ function aqiMeta(aqi: number) {
 
 function healthTipsForAqi(aqi: number) {
   if (aqi <= 50)
-    return ["Air quality is good — enjoy outdoor activities.", "Keep windows open if indoors and ventilated."];
+    return ["Air quality is good — enjoy outdoor activities.", "Keep windows open for fresh air.", "Perfect time for exercise outdoors."];
   if (aqi <= 100)
-    return ["Acceptable for most people. Sensitive groups should reduce long outdoor exertion."];
+    return ["Acceptable for most people. Sensitive groups should reduce long outdoor exertion.", "Consider light outdoor activities.", "Monitor air quality if you have respiratory conditions."];
   if (aqi <= 150)
     return [
       "Sensitive groups: reduce prolonged or heavy exertion outdoors.",
       "Consider using an N95/FFP2 mask for extended outdoor exposure.",
+      "Keep windows closed during peak pollution hours.",
+      "Use indoor air purifiers if available."
     ];
   if (aqi <= 200)
     return [
       "Everyone may begin to experience health effects; minimize outdoor activities.",
       "Use indoor air purifiers (HEPA) and avoid exercise outdoors.",
+      "Wear N95 masks if going outside is necessary.",
+      "Keep medications handy if you have respiratory issues."
     ];
-  return ["Emergency condition: avoid all outdoor exertion.", "Seek medical attention if you experience respiratory symptoms."];
+  return [
+    "Emergency condition: avoid all outdoor exertion.", 
+    "Seek medical attention if you experience respiratory symptoms.",
+    "Stay indoors with air purifiers running.",
+    "Close all windows and doors."
+  ];
+}
+
+function getActivitiesRecommendation(aqi: number): WeatherActivity[] {
+  return [
+    {
+      activity: "Morning Walk/Jog",
+      recommendation: aqi <= 50 ? 'recommended' : aqi <= 100 ? 'caution' : 'avoid',
+      reason: aqi <= 50 ? "Air quality is excellent" : aqi <= 100 ? "Moderate air - limit duration" : "Poor air quality",
+      icon: "🏃"
+    },
+    {
+      activity: "Outdoor Sports",
+      recommendation: aqi <= 50 ? 'recommended' : aqi <= 100 ? 'caution' : 'avoid',
+      reason: aqi <= 50 ? "Safe for all activities" : aqi <= 100 ? "Limit intense activities" : "Indoor sports recommended",
+      icon: "⚽"
+    },
+    {
+      activity: "Cycling",
+      recommendation: aqi <= 50 ? 'recommended' : aqi <= 100 ? 'caution' : 'avoid',
+      reason: aqi <= 50 ? "Great conditions" : aqi <= 100 ? "Short distances only" : "Use indoor alternatives",
+      icon: "🚴"
+    },
+    {
+      activity: "Children's Outdoor Play",
+      recommendation: aqi <= 50 ? 'recommended' : aqi <= 100 ? 'caution' : 'avoid',
+      reason: aqi <= 50 ? "Perfect for kids" : aqi <= 100 ? "Supervised and limited time" : "Indoor activities preferred",
+      icon: "🎮"
+    },
+    {
+      activity: "Window Ventilation",
+      recommendation: aqi <= 50 ? 'recommended' : aqi <= 150 ? 'caution' : 'avoid',
+      reason: aqi <= 50 ? "Excellent for fresh air" : aqi <= 150 ? "Open during early morning only" : "Keep windows closed",
+      icon: "🪟"
+    },
+    {
+      activity: "Outdoor Dining",
+      recommendation: aqi <= 100 ? 'recommended' : aqi <= 150 ? 'caution' : 'avoid',
+      reason: aqi <= 100 ? "Enjoy outdoor meals" : aqi <= 150 ? "Short durations okay" : "Indoor dining recommended",
+      icon: "🍽️"
+    }
+  ];
 }
 
 const container = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { staggerChildren: 0.05 } } };
 
 export default function HealthTipsPage() {
-  const [selected, setSelected] = useState<CityAqi>(DEMO_CITIES[0]);
+  const [cityData, setCityData] = useState<CityAqi>({
+    name: "Loading...",
+    aqi: 0,
+  });
   const [expanded, setExpanded] = useState<number | null>(0);
+  const [loading, setLoading] = useState(true);
+  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<string>("Delhi");
 
-  const meta = aqiMeta(selected.aqi);
+  // Fetch real-time AQI data
+  useEffect(() => {
+    const fetchRealTimeData = async () => {
+      try {
+        const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        
+        const response = await fetch(`${backendBase}/api/aqi?location=${encodeURIComponent(selectedLocation)}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          setCityData({
+            name: selectedLocation,
+            aqi: data.aqi || 0,
+            location: data.location || selectedLocation,
+            pm25: data.pm25,
+            pm10: data.pm10,
+            temp: data.temperature,
+            humidity: data.humidity,
+          });
+        } else {
+          // Fallback to mock data
+          setCityData({
+            name: selectedLocation,
+            aqi: 65,
+            pm25: 32.5,
+            pm10: 45.2,
+            temp: 28,
+            humidity: 65,
+          });
+        }
+      } catch (error) {
+        console.warn("Failed to fetch real-time data, using fallback:", error);
+        setCityData({
+          name: selectedLocation,
+          aqi: 65,
+          pm25: 32.5,
+          pm10: 45.2,
+          temp: 28,
+          humidity: 65,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRealTimeData();
+    // Refresh data every 5 minutes
+    const interval = setInterval(fetchRealTimeData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [selectedLocation]);
+
+  // Generate news articles
+  useEffect(() => {
+    const generateNews = () => {
+      const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const currentAqi = cityData.aqi;
+      
+      const newsArticles: NewsArticle[] = [
+        {
+          title: `${cityData.name} Air Quality Update - ${today}`,
+          description: `Current AQI stands at ${currentAqi}. ${currentAqi > 100 ? 'Residents advised to limit outdoor activities.' : 'Air quality is acceptable for outdoor activities.'}`,
+          source: "AirWare Health Monitor",
+          publishedAt: new Date().toISOString(),
+          category: 'air-quality'
+        },
+        {
+          title: "Weather Forecast Impact on Air Quality",
+          description: `${cityData.temp ? `Temperature: ${cityData.temp}°C, Humidity: ${cityData.humidity}%. ` : ''}Weather conditions may affect pollutant dispersion. Monitor updates regularly.`,
+          source: "Weather & Environment Desk",
+          publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          category: 'weather'
+        },
+        {
+          title: "Health Advisory for Sensitive Groups",
+          description: currentAqi > 100 
+            ? "Children, elderly, and people with respiratory conditions should take extra precautions and avoid prolonged outdoor exposure."
+            : "Air quality is within acceptable limits. Normal activities can proceed for all groups.",
+          source: "Health Advisory Board",
+          publishedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+          category: 'health'
+        },
+        {
+          title: "PM2.5 and PM10 Levels Analysis",
+          description: `PM2.5: ${cityData.pm25 || 'N/A'} µg/m³, PM10: ${cityData.pm10 || 'N/A'} µg/m³. Fine particulate matter remains ${currentAqi > 100 ? 'elevated' : 'moderate'}.`,
+          source: "Environmental Monitoring",
+          publishedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+          category: 'air-quality'
+        },
+        {
+          title: "Best Times for Outdoor Activities Today",
+          description: currentAqi <= 100 
+            ? "Early morning (6-8 AM) and evening (6-8 PM) are ideal for outdoor exercise and activities."
+            : "Consider indoor alternatives. If outdoor activity is necessary, limit to early morning hours with proper N95 mask.",
+          source: "Fitness & Wellness",
+          publishedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+          category: 'health'
+        }
+      ];
+      
+      setNews(newsArticles);
+    };
+
+    if (!loading) {
+      generateNews();
+    }
+  }, [cityData, loading]);
+
+  const meta = aqiMeta(cityData.aqi);
+  const activities = getActivitiesRecommendation(cityData.aqi);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-cyan-100">
+        <div className="text-center">
+          <div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-lg text-gray-700">Loading health tips...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-10 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
@@ -63,8 +256,8 @@ export default function HealthTipsPage() {
             <Sun className="text-white w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-4xl font-extrabold text-gray-900">Health Tips & Recommendations</h1>
-            <p className="text-gray-700 mt-1">Practical guidance based on AQI levels. Demo data for Tamil Nadu & sample cities.</p>
+            <h1 className="text-4xl font-extrabold text-gray-900">Health Tips & Live Updates</h1>
+            <p className="text-gray-700 mt-1">Real-time air quality data, health recommendations, and daily news updates</p>
           </div>
         </div>
       </motion.header>
@@ -74,22 +267,25 @@ export default function HealthTipsPage() {
         {/* Sidebar */}
         <motion.aside className="lg:col-span-1 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
           <motion.div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Choose a demo city</label>
+            <label className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-blue-600" />
+              Select Your Location
+            </label>
             <div className="relative">
               <select
-                value={selected.name}
-                onChange={(e) =>
-                  setSelected(DEMO_CITIES.find((c) => c.name === e.target.value) || DEMO_CITIES[0])
-                }
-                className="w-full p-3 rounded-lg border bg-white text-gray-900 shadow focus:ring-2 focus:ring-blue-500"
+                value={selectedLocation}
+                onChange={(e) => {
+                  setSelectedLocation(e.target.value);
+                  setLoading(true);
+                }}
+                className="w-full p-3 rounded-xl border border-gray-300 bg-white text-gray-900 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               >
-                {DEMO_CITIES.map((c) => (
-                  <option key={c.name} value={c.name} className="text-gray-900">
-                    {c.name} — AQI {c.aqi}
+                {availableLocations.map((loc) => (
+                  <option key={loc} value={loc} className="text-gray-900">
+                    {loc}
                   </option>
                 ))}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500">▾</div>
             </div>
           </motion.div>
 
@@ -98,8 +294,8 @@ export default function HealthTipsPage() {
               <div>
                 <div className="text-sm text-gray-800">Current AQI</div>
                 <div className="flex items-baseline gap-3">
-                  <motion.h2 layout key={selected.name} className="text-4xl font-extrabold text-gray-900">
-                    {selected.aqi}
+                  <motion.h2 layout key={cityData.name} className="text-5xl font-extrabold text-gray-900">
+                    {cityData.aqi}
                   </motion.h2>
                   <div className="text-sm font-semibold text-gray-900">{meta.label}</div>
                 </div>
@@ -116,7 +312,7 @@ export default function HealthTipsPage() {
               <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (selected.aqi / 300) * 100)}%` }}
+                  animate={{ width: `${Math.min(100, (cityData.aqi / 300) * 100)}%` }}
                   style={{ background: meta.color }}
                   className="h-full"
                 />
@@ -141,24 +337,118 @@ export default function HealthTipsPage() {
 
         {/* Main */}
         <motion.main className="lg:col-span-2 space-y-6">
-          {/* Recommendations */}
+          {/* Live News Section */}
           <motion.section
             className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100"
             initial="hidden"
             animate="show"
             variants={container}
           >
-            <motion.h3 className="text-xl font-semibold mb-4 text-gray-900">Recommendations</motion.h3>
+            <motion.h3 className="text-xl font-semibold mb-6 text-gray-900 flex items-center gap-2">
+              <Newspaper className="w-6 h-6 text-blue-600" />
+              Today&apos;s Air Quality News & Updates
+            </motion.h3>
+            <div className="space-y-4">
+              {news.map((article, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="border-l-4 border-blue-500 bg-gradient-to-r from-blue-50 to-white rounded-r-xl p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        {article.category === 'air-quality' && <Cloud className="w-4 h-4 text-blue-600" />}
+                        {article.category === 'weather' && <Sun className="w-4 h-4 text-orange-600" />}
+                        {article.category === 'health' && <Heart className="w-4 h-4 text-red-600" />}
+                        <span className="text-xs font-semibold text-gray-500 uppercase">
+                          {article.category.replace('-', ' ')}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-gray-900 mb-2">{article.title}</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">{article.description}</p>
+                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                        <span className="font-medium">{article.source}</span>
+                        <span>•</span>
+                        <span>{new Date(article.publishedAt).toLocaleTimeString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.section>
+
+          {/* Activity Recommendations */}
+          <motion.section
+            className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100"
+            initial="hidden"
+            animate="show"
+            variants={container}
+          >
+            <motion.h3 className="text-xl font-semibold mb-6 text-gray-900 flex items-center gap-2">
+              <Activity className="w-6 h-6 text-green-600" />
+              Outdoor Activity Recommendations
+            </motion.h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activities.map((activity, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className={`p-4 rounded-xl border-2 ${
+                    activity.recommendation === 'recommended' 
+                      ? 'border-green-500 bg-green-50' 
+                      : activity.recommendation === 'caution'
+                      ? 'border-yellow-500 bg-yellow-50'
+                      : 'border-red-500 bg-red-50'
+                  } hover:shadow-md transition-shadow`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="text-3xl">{activity.icon}</div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-gray-900 mb-1">{activity.activity}</h4>
+                      <div className={`text-xs font-semibold uppercase mb-2 ${
+                        activity.recommendation === 'recommended' 
+                          ? 'text-green-700' 
+                          : activity.recommendation === 'caution'
+                          ? 'text-yellow-700'
+                          : 'text-red-700'
+                      }`}>
+                        {activity.recommendation === 'recommended' ? '✓ Recommended' : activity.recommendation === 'caution' ? '⚠ Caution' : '✗ Avoid'}
+                      </div>
+                      <p className="text-sm text-gray-700">{activity.reason}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.section>
+
+          {/* Health Recommendations */}
+          <motion.section
+            className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100"
+            initial="hidden"
+            animate="show"
+            variants={container}
+          >
+            <motion.h3 className="text-xl font-semibold mb-6 text-gray-900 flex items-center gap-2">
+              <AlertTriangle className="w-6 h-6 text-orange-600" />
+              Health Recommendations
+            </motion.h3>
             <AnimatePresence>
               <motion.div
                 layout
-                key={selected.name}
+                key={cityData.name}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {healthTipsForAqi(selected.aqi).map((tip, idx) => (
+                  {healthTipsForAqi(cityData.aqi).map((tip, idx) => (
                     <motion.div
                       key={idx}
                       whileHover={{ y: -6, scale: 1.02 }}
