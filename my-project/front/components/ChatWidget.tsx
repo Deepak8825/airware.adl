@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 const MessageSender = () => {
   const [message, setMessage] = useState('');
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const baseUrl = 'http://localhost:3000';
 
   const sendMessage = async () => {
