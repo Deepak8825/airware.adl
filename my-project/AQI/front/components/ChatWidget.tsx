@@ -192,8 +192,9 @@ const ChatWidget = () => {
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder={t.chatbot.placeholder}
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 bg-white transition-all"
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-base font-medium text-gray-900 dark:text-gray-900 placeholder:text-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 bg-white shadow-sm transition-all"
                   disabled={isLoading}
+                  style={{ color: '#111827' }}
                 />
                 <button
                   onClick={sendMessage}
