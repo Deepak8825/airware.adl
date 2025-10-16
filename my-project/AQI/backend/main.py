@@ -81,7 +81,7 @@ class FeedbackData(BaseModel):
     category: str
     usageFrequency: Optional[str] = None
     features: Optional[List[str]] = None
-    improvements: Optional[str] = None
+    improvements: Optional[List[str]] = None
     recommend: Optional[bool] = None
     additionalFeedback: Optional[str] = None
 
