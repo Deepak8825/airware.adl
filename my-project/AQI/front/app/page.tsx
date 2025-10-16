@@ -57,8 +57,15 @@ const Home = () => {
     setLocation(`${locationData.city}, ${locationData.country}`);
   };
 
-  // Authentication removed: always show dashboard
-  useEffect(() => { setIsAuthenticated(true); }, []);
+  // Check authentication and redirect to login if not authenticated
+  useEffect(() => {
+    const token = localStorage.getItem("airware_token");
+    if (!token) {
+      router.replace("/login");
+    } else {
+      setIsAuthenticated(true);
+    }
+  }, [router]);
 
   // Simulate API data fetch
   useEffect(() => {
