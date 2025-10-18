@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Heart, Info, Newspaper, Cloud, Activity, AlertTriangle, MapPin, Calendar, TrendingUp, Wind, Droplets, ThermometerSun } from "lucide-react";
+import { Sun, Heart, Info, Newspaper, Cloud, Activity, AlertTriangle, MapPin, Calendar, TrendingUp, Wind, Droplets, ThermometerSun, Sprout, Tractor, Leaf } from "lucide-react";
 
 type CityAqi = { 
   name: string; 
@@ -26,6 +26,28 @@ type WeatherActivity = {
   recommendation: 'recommended' | 'caution' | 'avoid';
   reason: string;
   icon: string;
+};
+
+type CropAlert = {
+  severity: string;
+  crop: string;
+  message: string;
+  recommendation: string;
+  safe_actions?: string[];
+  optimal?: string;
+};
+
+type FarmingSuggestion = {
+  location: string;
+  current_aqi: number;
+  season: string;
+  pm25: number;
+  pm10: number;
+  crop_specific_alerts: CropAlert[] | null;
+  general_recommendations: any[];
+  seasonal_suggestions: any[];
+  pollution_management: any;
+  message: string;
 };
 
 const availableLocations = [
@@ -121,6 +143,9 @@ export default function HealthTipsPage() {
   const [loading, setLoading] = useState(true);
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>("Delhi");
+  const [farmingData, setFarmingData] = useState<FarmingSuggestion | null>(null);
+  const [selectedCrop, setSelectedCrop] = useState<string>("rice");
+  const [showFarmerSection, setShowFarmerSection] = useState(false);
 
   // Fetch real-time AQI data
   useEffect(() => {
@@ -229,6 +254,29 @@ export default function HealthTipsPage() {
     }
   }, [cityData, loading]);
 
+  // Fetch farming suggestions
+  useEffect(() => {
+    const fetchFarmingSuggestions = async () => {
+      try {
+        const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const response = await fetch(
+          `${backendBase}/api/farming/suggestions?location=${encodeURIComponent(selectedLocation)}&crop=${selectedCrop}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          setFarmingData(data);
+        }
+      } catch (error) {
+        console.warn("Failed to fetch farming suggestions:", error);
+      }
+    };
+
+    if (!loading && showFarmerSection) {
+      fetchFarmingSuggestions();
+    }
+  }, [selectedLocation, selectedCrop, loading, showFarmerSection]);
+
   const meta = aqiMeta(cityData.aqi);
   const activities = getActivitiesRecommendation(cityData.aqi);
 
@@ -256,8 +304,8 @@ export default function HealthTipsPage() {
             <Sun className="text-white w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-4xl font-extrabold text-gray-900">Health Tips & Live Updates</h1>
-            <p className="text-gray-700 mt-1">Real-time air quality data, health recommendations, and daily news updates</p>
+            <h1 className="text-4xl font-extrabold text-black">Health Tips & Live Updates</h1>
+            <p className="text-black font-medium mt-1">Real-time air quality data, health recommendations, and daily news updates</p>
           </div>
         </div>
       </motion.header>
@@ -267,7 +315,7 @@ export default function HealthTipsPage() {
         {/* Sidebar */}
         <motion.aside className="lg:col-span-1 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
           <motion.div className="mb-6">
-            <label className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <label className="text-sm font-semibold text-black mb-3 flex items-center gap-2">
               <MapPin className="w-4 h-4 text-blue-600" />
               Select Your Location
             </label>
@@ -278,10 +326,10 @@ export default function HealthTipsPage() {
                   setSelectedLocation(e.target.value);
                   setLoading(true);
                 }}
-                className="w-full p-3 rounded-xl border border-gray-300 bg-white text-gray-900 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                className="w-full p-3 rounded-xl border border-gray-300 bg-white text-black font-medium shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               >
                 {availableLocations.map((loc) => (
-                  <option key={loc} value={loc} className="text-gray-900">
+                  <option key={loc} value={loc} className="text-black">
                     {loc}
                   </option>
                 ))}
@@ -292,12 +340,12 @@ export default function HealthTipsPage() {
           <motion.div className="mt-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-gray-800">Current AQI</div>
+                <div className="text-sm text-black font-semibold">Current AQI</div>
                 <div className="flex items-baseline gap-3">
-                  <motion.h2 layout key={cityData.name} className="text-5xl font-extrabold text-gray-900">
+                  <motion.h2 layout key={cityData.name} className="text-5xl font-extrabold text-black">
                     {cityData.aqi}
                   </motion.h2>
-                  <div className="text-sm font-semibold text-gray-900">{meta.label}</div>
+                  <div className="text-sm font-semibold text-black">{meta.label}</div>
                 </div>
               </div>
               <div
@@ -317,7 +365,7 @@ export default function HealthTipsPage() {
                   className="h-full"
                 />
               </div>
-              <div className="flex justify-between text-xs font-medium text-gray-700 mt-2">
+              <div className="flex justify-between text-xs font-bold text-black mt-2">
                 <span>0</span>
                 <span>150</span>
                 <span>300+</span>
@@ -327,7 +375,7 @@ export default function HealthTipsPage() {
             <div className="mt-6">
               <button
                 onClick={() => setExpanded((prev) => (prev === 0 ? null : 0))}
-                className="w-full py-2.5 px-4 rounded-lg border bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-900 font-medium transition shadow-sm"
+                className="w-full py-2.5 px-4 rounded-lg border bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-black font-medium transition shadow-sm"
               >
                 Quick recommendations
               </button>
@@ -344,7 +392,7 @@ export default function HealthTipsPage() {
             animate="show"
             variants={container}
           >
-            <motion.h3 className="text-xl font-semibold mb-6 text-gray-900 flex items-center gap-2">
+            <motion.h3 className="text-xl font-semibold mb-6 text-black flex items-center gap-2">
               <Newspaper className="w-6 h-6 text-blue-600" />
               Today&apos;s Air Quality News & Updates
             </motion.h3>
@@ -363,13 +411,13 @@ export default function HealthTipsPage() {
                         {article.category === 'air-quality' && <Cloud className="w-4 h-4 text-blue-600" />}
                         {article.category === 'weather' && <Sun className="w-4 h-4 text-orange-600" />}
                         {article.category === 'health' && <Heart className="w-4 h-4 text-red-600" />}
-                        <span className="text-xs font-semibold text-gray-500 uppercase">
+                        <span className="text-xs font-semibold text-gray-800 uppercase">
                           {article.category.replace('-', ' ')}
                         </span>
                       </div>
-                      <h4 className="font-bold text-gray-900 mb-2">{article.title}</h4>
-                      <p className="text-sm text-gray-700 leading-relaxed">{article.description}</p>
-                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                      <h4 className="font-bold text-black mb-2">{article.title}</h4>
+                      <p className="text-sm text-black leading-relaxed">{article.description}</p>
+                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-800">
                         <span className="font-medium">{article.source}</span>
                         <span>•</span>
                         <span>{new Date(article.publishedAt).toLocaleTimeString()}</span>
@@ -388,7 +436,7 @@ export default function HealthTipsPage() {
             animate="show"
             variants={container}
           >
-            <motion.h3 className="text-xl font-semibold mb-6 text-gray-900 flex items-center gap-2">
+            <motion.h3 className="text-xl font-semibold mb-6 text-black flex items-center gap-2">
               <Activity className="w-6 h-6 text-green-600" />
               Outdoor Activity Recommendations
             </motion.h3>
@@ -410,17 +458,17 @@ export default function HealthTipsPage() {
                   <div className="flex items-start gap-3">
                     <div className="text-3xl">{activity.icon}</div>
                     <div className="flex-1">
-                      <h4 className="font-bold text-gray-900 mb-1">{activity.activity}</h4>
+                      <h4 className="font-bold text-black mb-1">{activity.activity}</h4>
                       <div className={`text-xs font-semibold uppercase mb-2 ${
                         activity.recommendation === 'recommended' 
-                          ? 'text-green-700' 
+                          ? 'text-green-800' 
                           : activity.recommendation === 'caution'
-                          ? 'text-yellow-700'
-                          : 'text-red-700'
+                          ? 'text-yellow-800'
+                          : 'text-red-800'
                       }`}>
                         {activity.recommendation === 'recommended' ? '✓ Recommended' : activity.recommendation === 'caution' ? '⚠ Caution' : '✗ Avoid'}
                       </div>
-                      <p className="text-sm text-gray-700">{activity.reason}</p>
+                      <p className="text-sm text-black">{activity.reason}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -435,7 +483,7 @@ export default function HealthTipsPage() {
             animate="show"
             variants={container}
           >
-            <motion.h3 className="text-xl font-semibold mb-6 text-gray-900 flex items-center gap-2">
+            <motion.h3 className="text-xl font-semibold mb-6 text-black flex items-center gap-2">
               <AlertTriangle className="w-6 h-6 text-orange-600" />
               Health Recommendations
             </motion.h3>
@@ -458,7 +506,7 @@ export default function HealthTipsPage() {
                         <div className="p-2 rounded-lg bg-blue-50 text-blue-600 shadow-sm">
                           <Info className="w-5 h-5" />
                         </div>
-                        <p className="text-gray-900 text-sm">{tip}</p>
+                        <p className="text-black text-sm font-medium">{tip}</p>
                       </div>
                     </motion.div>
                   ))}
@@ -469,7 +517,7 @@ export default function HealthTipsPage() {
 
           {/* Detailed Guidance */}
           <motion.section className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-            <h3 className="text-lg font-semibold mb-4 text-gray-900">Detailed Guidance</h3>
+            <h3 className="text-lg font-semibold mb-4 text-black">Detailed Guidance</h3>
             <div className="space-y-3">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="border rounded-lg overflow-hidden shadow-sm">
@@ -478,12 +526,12 @@ export default function HealthTipsPage() {
                     className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition"
                   >
                     <div>
-                      <div className="font-semibold text-gray-900">
+                      <div className="font-semibold text-black">
                         {i === 0 ? "When to wear a mask" : i === 1 ? "Indoor air actions" : "Vulnerable groups"}
                       </div>
-                      <div className="text-sm text-gray-600">Tap to expand</div>
+                      <div className="text-sm text-gray-800 font-medium">Tap to expand</div>
                     </div>
-                    <div className="text-gray-600 text-xl">{expanded === i + 1 ? "−" : "+"}</div>
+                    <div className="text-black text-xl font-bold">{expanded === i + 1 ? "−" : "+"}</div>
                   </button>
                   <AnimatePresence>
                     {expanded === i + 1 && (
@@ -493,7 +541,7 @@ export default function HealthTipsPage() {
                         exit={{ height: 0, opacity: 0 }}
                         className="px-4 pb-4"
                       >
-                        <div className="text-sm text-gray-800 py-2 leading-relaxed">
+                        <div className="text-sm text-black py-2 leading-relaxed">
                           {i === 0 && (
                             <>Wear a fitted N95/FFP2 when AQI &gt;100 for prolonged outdoor activities. Avoid strenuous exercise outdoors when AQI &gt;150.</>
                           )}
@@ -512,17 +560,263 @@ export default function HealthTipsPage() {
             </div>
           </motion.section>
 
+          {/* 🌾 Farmer Supportive Enhancement Section */}
+          <motion.section
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="mb-8"
+          >
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 shadow-lg border border-green-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Tractor className="w-8 h-8 text-green-600" />
+                  <div>
+                    <h3 className="text-2xl font-bold text-black">
+                      🌾 AirAware Farmer Support
+                    </h3>
+                    <p className="text-sm text-gray-800 font-medium">
+                      Climate-smart assistant for rural farmers
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowFarmerSection(!showFarmerSection)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 shadow transition"
+                >
+                  {showFarmerSection ? 'Hide' : 'Show'} Farmer Tools
+                </button>
+              </div>
+
+              {showFarmerSection && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="space-y-6"
+                >
+                  {/* Crop Selection */}
+                  <div className="bg-white rounded-xl p-4 shadow">
+                    <label className="block text-sm font-bold text-black mb-2">
+                      Select Your Crop
+                    </label>
+                    <select
+                      value={selectedCrop}
+                      onChange={(e) => setSelectedCrop(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-black font-medium bg-white"
+                    >
+                      <option value="rice">🌾 Rice (Paddy)</option>
+                      <option value="wheat">🌾 Wheat</option>
+                      <option value="cotton">🌱 Cotton</option>
+                      <option value="sugarcane">🎍 Sugarcane</option>
+                      <option value="vegetables">🥬 Vegetables</option>
+                      <option value="pulses">🫘 Pulses</option>
+                    </select>
+                  </div>
+
+                  {farmingData && (
+                    <>
+                      {/* Crop-Specific Alerts */}
+                      {farmingData.crop_specific_alerts && farmingData.crop_specific_alerts.length > 0 && (
+                        <div className="bg-white rounded-xl p-6 shadow-md">
+                          <div className="flex items-center gap-2 mb-4">
+                            <Leaf className="w-6 h-6 text-orange-600" />
+                            <h4 className="text-lg font-bold text-black">
+                              Crop-Specific AQI Alerts
+                            </h4>
+                          </div>
+                          {farmingData.crop_specific_alerts.map((alert, idx) => (
+                            <div
+                              key={idx}
+                              className={`p-4 rounded-lg mb-3 ${
+                                alert.severity === 'warning'
+                                  ? 'bg-orange-50 border-l-4 border-orange-500'
+                                  : 'bg-green-50 border-l-4 border-green-500'
+                              }`}
+                            >
+                              <p className="font-semibold text-lg mb-2 text-black">
+                                {alert.message}
+                              </p>
+                              <p className="text-sm text-black mb-2">
+                                <strong className="text-black">Recommendation:</strong> {alert.recommendation}
+                              </p>
+                              {alert.safe_actions && (
+                                <div className="mt-2">
+                                  <strong className="text-sm text-black">Safe Activities:</strong>
+                                  <ul className="list-disc list-inside text-sm text-black mt-1">
+                                    {alert.safe_actions.map((action, i) => (
+                                      <li key={i}>{action}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {alert.optimal && (
+                                <p className="text-xs text-gray-800 mt-2">
+                                  <strong className="text-black">Optimal:</strong> {alert.optimal}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* AI-Based General Recommendations */}
+                      {farmingData.general_recommendations && farmingData.general_recommendations.length > 0 && (
+                        <div className="bg-white rounded-xl p-6 shadow-md">
+                          <div className="flex items-center gap-2 mb-4">
+                            <Sprout className="w-6 h-6 text-green-600" />
+                            <h4 className="text-lg font-bold text-black">
+                              🧠 AI-Based Farming Suggestions
+                            </h4>
+                          </div>
+                          {farmingData.general_recommendations.map((rec, idx) => (
+                            <div key={idx} className="mb-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-2xl">{rec.icon}</span>
+                                <h5 className="font-semibold text-black">{rec.title}</h5>
+                              </div>
+                              <ul className="list-disc list-inside text-sm text-black space-y-1 ml-8">
+                                {rec.activities.map((activity: string, i: number) => (
+                                  <li key={i}>{activity}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Seasonal Suggestions */}
+                      {farmingData.seasonal_suggestions && farmingData.seasonal_suggestions.length > 0 && (
+                        <div className="bg-white rounded-xl p-6 shadow-md">
+                          <div className="flex items-center gap-2 mb-4">
+                            <Calendar className="w-6 h-6 text-blue-600" />
+                            <h4 className="text-lg font-bold text-black">
+                              Seasonal Guidance - {farmingData.season}
+                            </h4>
+                          </div>
+                          {farmingData.seasonal_suggestions.map((season, idx) => (
+                            <div key={idx} className="space-y-3">
+                              <div className="bg-blue-50 p-4 rounded-lg">
+                                <h5 className="font-semibold text-black mb-2">
+                                  {season.period}
+                                </h5>
+                                <p className="text-sm text-black mb-2">
+                                  <strong className="text-black">Recommended Crops:</strong> {season.crops.join(', ')}
+                                </p>
+                                <p className="text-sm text-black mb-2">
+                                  <strong className="text-black">Sowing Period:</strong> {season.sowing}
+                                </p>
+                                <p className="text-sm text-black mb-2">
+                                  <strong className="text-black">Harvest Period:</strong> {season.harvest}
+                                </p>
+                                <p className="text-sm text-orange-800 mb-2 font-semibold">
+                                  <strong className="text-black">⚠️ AQI Impact:</strong> {season.aqi_impact}
+                                </p>
+                                <div className="mt-3">
+                                  <strong className="text-sm text-black">💡 Tips:</strong>
+                                  <ul className="list-disc list-inside text-sm text-black mt-1">
+                                    {season.tips.map((tip: string, i: number) => (
+                                      <li key={i}>{tip}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Pollution Management Best Practices */}
+                      {farmingData.pollution_management && (
+                        <div className="bg-white rounded-xl p-6 shadow-md">
+                          <div className="flex items-center gap-2 mb-4">
+                            <AlertTriangle className="w-6 h-6 text-red-600" />
+                            <h4 className="text-lg font-bold text-black">
+                              Pollution Management Best Practices
+                            </h4>
+                          </div>
+                          <div className="space-y-4">
+                            <div>
+                              <h5 className="font-semibold text-black mb-2">
+                                🛡️ Preventive Measures
+                              </h5>
+                              <ul className="list-disc list-inside text-sm text-black space-y-1">
+                                {farmingData.pollution_management.preventive_measures.map((measure: string, i: number) => (
+                                  <li key={i}>{measure}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div>
+                              <h5 className="font-semibold text-black mb-2">
+                                📊 AQI Monitoring Tips
+                              </h5>
+                              <ul className="list-disc list-inside text-sm text-black space-y-1">
+                                {farmingData.pollution_management.aqi_monitoring_tips.map((tip: string, i: number) => (
+                                  <li key={i}>{tip}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div>
+                              <h5 className="font-semibold text-black mb-2">
+                                🌱 Crop Protection
+                              </h5>
+                              <ul className="list-disc list-inside text-sm text-black space-y-1">
+                                {farmingData.pollution_management.crop_protection.map((tip: string, i: number) => (
+                                  <li key={i}>{tip}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Current Conditions Summary */}
+                      <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl p-4 shadow">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-600">
+                              {farmingData.current_aqi}
+                            </div>
+                            <div className="text-xs text-black font-semibold">Current AQI</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-green-600">
+                              {farmingData.season}
+                            </div>
+                            <div className="text-xs text-black font-semibold">Season</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-orange-600">
+                              {farmingData.pm25 || 'N/A'}
+                            </div>
+                            <div className="text-xs text-black font-semibold">PM2.5 µg/m³</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-purple-600">
+                              {farmingData.pm10 || 'N/A'}
+                            </div>
+                            <div className="text-xs text-black font-semibold">PM10 µg/m³</div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </motion.div>
+              )}
+            </div>
+          </motion.section>
+
           {/* Help Section */}
           <motion.section className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl p-6 shadow-lg flex items-center justify-between border border-blue-100">
             <div>
-              <h4 className="font-bold text-gray-900">Need more help?</h4>
-              <p className="text-sm text-gray-700 mt-1">Contact local health services or consult your physician for personalized advice.</p>
+              <h4 className="font-bold text-black">Need more help?</h4>
+              <p className="text-sm text-black font-medium mt-1">Contact local health services or consult your physician for personalized advice.</p>
             </div>
             <div className="flex gap-3">
               <button className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow transition">
                 Find clinics
               </button>
-              <button className="px-4 py-2 bg-gray-100 text-gray-900 rounded-lg font-medium hover:bg-gray-200 shadow-sm transition">
+              <button className="px-4 py-2 bg-gray-100 text-black rounded-lg font-medium hover:bg-gray-200 shadow-sm transition">
                 Save report
               </button>
             </div>

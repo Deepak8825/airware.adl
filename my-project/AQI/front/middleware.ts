@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Middleware kept as a neutral no-op so removed auth routes don't get redirected to.
-export function middleware(_req: NextRequest) {
+// Middleware to handle public/protected routes
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Public routes that don't require authentication
+  const publicRoutes = ['/login', '/register'];
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
+
+  // For non-public routes, client-side check will handle redirect
+  // This middleware just ensures proper routing
+  
   return NextResponse.next();
 }
 
 export const config = {
-  // no matcher: middleware is a no-op for all routes
-  matcher: []
+  // Apply middleware to all routes except static files and API routes
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)']
 };

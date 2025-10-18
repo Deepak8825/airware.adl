@@ -7,4 +7,5 @@ apscheduler
 python-multipart
 openai
 PyJWT
-passlib[bcrypt]
+passlib
+bcrypt==4.0.1

@@ -45,6 +45,7 @@ const Home = () => {
   const { t } = useLanguage();
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
   const [aqiData, setAqiData] = useState<AqiData | null>(null);
   const [forecast, setForecast] = useState<Forecast[]>([]);
   const [location, setLocation] = useState("New York");
@@ -54,75 +55,85 @@ const Home = () => {
   // Handle location updates from LocationWidget
   const handleLocationUpdate = (locationData: LocationData) => {
     setUserLocation(locationData);
-    setLocation(`${locationData.city}, ${locationData.country}`);
+    setLocation(locationData.city || `${locationData.city}, ${locationData.country}`);
+    // Immediately trigger AQI fetch with new location
+    fetchAqiData(locationData);
   };
 
   // Check authentication and redirect to login if not authenticated
   useEffect(() => {
     const token = localStorage.getItem("airware_token");
     if (!token) {
+      setAuthChecking(false);
       router.replace("/login");
     } else {
       setIsAuthenticated(true);
+      setAuthChecking(false);
     }
   }, [router]);
 
-  // Simulate API data fetch
-  useEffect(() => {
-    const fetchAqiData = async () => {
-      try {
-        const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-        let apiUrl = `${backendBase}/api/aqi?location=` + encodeURIComponent(location);
+  // Fetch AQI data function (extracted for reuse)
+  const fetchAqiData = async (locData?: LocationData) => {
+    try {
+      const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const locationToUse = locData || userLocation;
+      let apiUrl = `${backendBase}/api/aqi?location=` + encodeURIComponent(location);
 
-        // If we have user coordinates, use them for more accurate data
-        if (userLocation) {
-          apiUrl = `${backendBase}/api/aqi?lat=${userLocation.latitude}&lng=${userLocation.longitude}`;
-        }
-
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error("API error");
-        const data = await res.json();
-        setAqiData({
-          location: userLocation ? `${userLocation.city}, ${userLocation.country}` : data.location,
-          aqi: data.aqi,
-          pm25: data.pm25,
-          pm10: data.pm10,
-          o3: data.o3,
-          no2: data.no2,
-          so2: data.so2,
-          co: data.co,
-          lastUpdated: data.lastUpdated || new Date().toLocaleTimeString(),
-        });
-        setForecast(data.forecast || []);
-      } catch (err) {
-        // fallback to mock data if API fails
-        const mockAqiData: AqiData = {
-          location: userLocation ? `${userLocation.city}, ${userLocation.country}` : "New York",
-          aqi: 42,
-          pm25: 12.3,
-          pm10: 23.1,
-          o3: 32,
-          no2: 18,
-          so2: 4,
-          co: 0.7,
-          lastUpdated: new Date().toLocaleTimeString(),
-        };
-        const mockForecast: Forecast[] = [
-          { day: "Today", temp: 72, condition: "sunny", aqi: 42 },
-          { day: "Tue", temp: 68, condition: "partly-cloudy", aqi: 55 },
-          { day: "Wed", temp: 70, condition: "rain", aqi: 38 },
-          { day: "Thu", temp: 75, condition: "cloudy", aqi: 62 },
-          { day: "Fri", temp: 78, condition: "sunny", aqi: 45 },
-        ];
-        setAqiData(mockAqiData);
-        setForecast(mockForecast);
-      } finally {
-        setIsLoading(false);
+      // If we have user coordinates, use them for more accurate data
+      if (locationToUse) {
+        apiUrl = `${backendBase}/api/aqi?lat=${locationToUse.latitude}&lng=${locationToUse.longitude}`;
       }
-    };
-    fetchAqiData();
+
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json();
+      setAqiData({
+        location: data.location, // Always use the location from API (nearest WAQI station)
+        aqi: data.aqi,
+        pm25: data.pm25,
+        pm10: data.pm10,
+        o3: data.o3,
+        no2: data.no2,
+        so2: data.so2,
+        co: data.co,
+        lastUpdated: data.lastUpdated || new Date().toLocaleTimeString(),
+      });
+      setForecast(data.forecast || []);
+    } catch (err) {
+      // fallback to mock data if API fails
+      const mockAqiData: AqiData = {
+        location: userLocation ? `${userLocation.city}, ${userLocation.country}` : "New York",
+        aqi: 42,
+        pm25: 12.3,
+        pm10: 23.1,
+        o3: 32,
+        no2: 18,
+        so2: 4,
+        co: 0.7,
+        lastUpdated: new Date().toLocaleTimeString(),
+      };
+      const mockForecast: Forecast[] = [
+        { day: "Today", temp: 72, condition: "sunny", aqi: 42 },
+        { day: "Tue", temp: 68, condition: "partly-cloudy", aqi: 55 },
+        { day: "Wed", temp: 70, condition: "rain", aqi: 38 },
+        { day: "Thu", temp: 75, condition: "cloudy", aqi: 62 },
+        { day: "Fri", temp: 78, condition: "sunny", aqi: 45 },
+      ];
+      setAqiData(mockAqiData);
+      setForecast(mockForecast);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Trigger API fetch when location changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAqiData();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location, userLocation]);
+  }, [location, userLocation, isAuthenticated]);
+
 
   // Get AQI category and color
   const getAqiCategory = (aqi: number) => {
@@ -160,7 +171,7 @@ const Home = () => {
     return t.aqi.categories.hazardous;
   };
 
-  if (isLoading) {
+  if (authChecking || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
@@ -169,6 +180,10 @@ const Home = () => {
         </div>
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    return null; // Will redirect to login
   }
 
   if (!aqiData) return <div>{t.common.error}</div>;
