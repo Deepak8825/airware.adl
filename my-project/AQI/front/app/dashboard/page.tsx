@@ -85,7 +85,7 @@ const Dashboard = () => {
     const token = localStorage.getItem("airware_token");
     if (!token) {
       setBootstrapping(false);
-      router.replace("/");
+      router.replace("/login");
       return;
     }
 
@@ -98,16 +98,21 @@ const Dashboard = () => {
         });
 
         if (!response.ok) {
-          throw new Error("Invalid session");
+          // Session invalid - silently redirect to login
+          localStorage.removeItem("airware_token");
+          router.replace("/login");
+          setBootstrapping(false);
+          return;
         }
 
         const data: UserProfile = await response.json();
         setProfile(data);
         setIsAuthenticated(true);
       } catch (error) {
-        console.error("Session verification failed", error);
+        // Network error or other issues - redirect to login
+        console.warn("Session verification failed:", error);
         localStorage.removeItem("airware_token");
-        router.replace("/");
+        router.replace("/login");
       } finally {
         setBootstrapping(false);
       }
@@ -120,7 +125,7 @@ const Dashboard = () => {
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem("airware_token");
-    router.replace("/");
+    router.replace("/login");
   }, [router]);
 
   useEffect(() => {

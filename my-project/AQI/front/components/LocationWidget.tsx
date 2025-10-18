@@ -115,18 +115,26 @@ export default function LocationWidget({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <MapPin className={`w-5 h-5 ${location ? 'text-green-500' : 'text-gray-400'}`} />
-              {location && (
+              <MapPin className={`w-5 h-5 ${location ? 'text-green-500' : isLoading ? 'text-blue-500' : 'text-gray-400'}`} />
+              {location && !isLoading && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+              )}
+              {isLoading && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-ping" />
               )}
             </div>
             <div className="flex flex-col">
               <span className="font-medium text-sm">
-                {location ? location.city : 'Location not set'}
+                {isLoading ? 'Detecting location...' : location ? location.city : 'Location not set'}
               </span>
-              {location && (
+              {location && !isLoading && (
                 <span className="text-xs text-gray-500">
                   {location.country} • {formatTimestamp(location.timestamp)}
+                </span>
+              )}
+              {isLoading && (
+                <span className="text-xs text-blue-500 animate-pulse">
+                  Please wait...
                 </span>
               )}
             </div>

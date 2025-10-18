@@ -27,24 +27,45 @@ export const useGeolocation = () => {
     isSupported: typeof navigator !== 'undefined' && 'geolocation' in navigator,
   });
 
-  // Reverse geocoding to get address from coordinates
+  // Reverse geocoding to get address from coordinates using WAQI API
   const reverseGeocode = async (lat: number, lng: number): Promise<Partial<LocationData>> => {
     try {
-      // Using a free geocoding service (you can replace with your preferred service)
-      const response = await fetch(
+      // Get location from our backend (which uses WAQI) - with timeout
+      const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      const response = await fetch(`${backendBase}/api/aqi?lat=${lat}&lng=${lng}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // WAQI returns the actual monitoring station name and location
+        return {
+          city: data.location || 'Unknown City',
+          country: 'India',
+          address: data.location || 'Location detected'
+        };
+      }
+      
+      // Fallback to generic geocoding if WAQI fails
+      const geoResponse = await fetch(
         `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
       );
       
-      if (!response.ok) throw new Error('Geocoding failed');
+      if (!geoResponse.ok) throw new Error('Geocoding failed');
       
-      const data = await response.json();
+      const geoData = await geoResponse.json();
       
       return {
-        city: data.city || data.locality || 'Unknown City',
-        country: data.countryName || 'Unknown Country',
-        address: data.localityInfo?.administrative?.[2]?.name || 
-                data.localityInfo?.administrative?.[1]?.name || 
-                `${data.city}, ${data.countryName}` || 'Unknown Address'
+        city: geoData.city || geoData.locality || 'Unknown City',
+        country: geoData.countryName || 'Unknown Country',
+        address: geoData.localityInfo?.administrative?.[2]?.name || 
+                geoData.localityInfo?.administrative?.[1]?.name || 
+                `${geoData.city}, ${geoData.countryName}` || 'Unknown Address'
       };
     } catch (error) {
       console.error('Reverse geocoding error:', error);
@@ -72,8 +93,8 @@ export const useGeolocation = () => {
           reject,
           {
             enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 60000, // Cache for 1 minute
+            timeout: 10000, // Reduced to 10 seconds
+            maximumAge: 30000, // Cache for 30 seconds (faster repeat access)
           }
         );
       });

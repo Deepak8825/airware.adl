@@ -189,8 +189,42 @@ cities = [
     {"name": "Ahmedabad", "query": "ahmedabad"},
 ]
 
-# WAQI API token (free tier allows ~1000 requests/day)
-api_token = "demo"  # Use 'demo' for testing, get your own token from waqi.info
+# Major Indian cities for real-time map data and fallbacks
+india_cities = [
+    {"name": "Delhi", "query": "delhi", "lat": 28.6139, "lng": 77.2090},
+    {"name": "Mumbai", "query": "mumbai", "lat": 19.0760, "lng": 72.8777},
+    {"name": "Bangalore", "query": "bangalore", "lat": 12.9716, "lng": 77.5946},
+    {"name": "Chennai", "query": "chennai", "lat": 13.0827, "lng": 80.2707},
+    {"name": "Kolkata", "query": "kolkata", "lat": 22.5726, "lng": 88.3639},
+    {"name": "Hyderabad", "query": "hyderabad", "lat": 17.3850, "lng": 78.4867},
+    {"name": "Pune", "query": "pune", "lat": 18.5204, "lng": 73.8567},
+    {"name": "Ahmedabad", "query": "ahmedabad", "lat": 23.0225, "lng": 72.5714},
+    {"name": "Jaipur", "query": "jaipur", "lat": 26.9124, "lng": 75.7873},
+    {"name": "Lucknow", "query": "lucknow", "lat": 26.8467, "lng": 80.9462},
+    {"name": "Kanpur", "query": "kanpur", "lat": 26.4499, "lng": 80.3319},
+    {"name": "Nagpur", "query": "nagpur", "lat": 21.1458, "lng": 79.0882},
+    {"name": "Patna", "query": "patna", "lat": 25.5941, "lng": 85.1376},
+    {"name": "Ghaziabad", "query": "ghaziabad", "lat": 28.6692, "lng": 77.4538},
+    {"name": "Surat", "query": "surat", "lat": 21.1702, "lng": 72.8311},
+    {"name": "Chandigarh", "query": "chandigarh", "lat": 30.7333, "lng": 76.7794},
+    {"name": "Noida", "query": "noida", "lat": 28.5355, "lng": 77.3910},
+    {"name": "Faridabad", "query": "faridabad", "lat": 28.4089, "lng": 77.3178},
+    {"name": "Gurugram", "query": "gurugram", "lat": 28.4595, "lng": 77.0266},
+    {"name": "Visakhapatnam", "query": "visakhapatnam", "lat": 17.6868, "lng": 83.2185},
+    {"name": "Bhopal", "query": "bhopal", "lat": 23.2599, "lng": 77.4126},
+    {"name": "Coimbatore", "query": "coimbatore", "lat": 11.0168, "lng": 76.9558},
+    {"name": "Agra", "query": "agra", "lat": 27.1767, "lng": 78.0081},
+    {"name": "Varanasi", "query": "varanasi", "lat": 25.3176, "lng": 82.9739},
+    {"name": "Jodhpur", "query": "jodhpur", "lat": 26.2389, "lng": 73.0243},
+    {"name": "Amritsar", "query": "amritsar", "lat": 31.6340, "lng": 74.8723},
+    {"name": "Raipur", "query": "raipur", "lat": 21.2514, "lng": 81.6296},
+    {"name": "Ranchi", "query": "ranchi", "lat": 23.3441, "lng": 85.3096},
+    {"name": "Kochi", "query": "kochi", "lat": 9.9312, "lng": 76.2673},
+    {"name": "Thiruvananthapuram", "query": "thiruvananthapuram", "lat": 8.5241, "lng": 76.9366},
+]
+
+# WAQI API token (supports env override for production tokens)
+api_token = os.getenv("WAQI_API_TOKEN", "7beb4e8158ba2a4bf6681b42a618fbb5ee9ca56d")
 
 def process_waqi_data(city, data):
     """Process WAQI API results into our format"""
@@ -257,6 +291,266 @@ def fetch_aqi_data():
         except Exception as exc:
             logging.error("Error processing %s: %s", city['name'], exc)
 
+
+
+    @app.get("/api/farming/suggestions")
+    async def get_farming_suggestions(
+        location: Optional[str] = None,
+        lat: Optional[float] = None,
+        lng: Optional[float] = None,
+        crop: Optional[str] = None,
+    ):
+        """Provide crop-aware farming suggestions based on current AQI and season."""
+
+        try:
+            if lat is not None and lng is not None:
+                aqi_snapshot = await fetch_realtime_data_by_coordinates(lat, lng)
+            elif location:
+                aqi_snapshot = await fetch_realtime_data_by_city(location)
+            else:
+                aqi_snapshot = {"aqi": 50, "location": "India", "pm25": 0, "pm10": 0}
+
+            aqi_value = aqi_snapshot.get("aqi", 50)
+            pm25_value = aqi_snapshot.get("pm25", 0)
+            pm10_value = aqi_snapshot.get("pm10", 0)
+            resolved_location = aqi_snapshot.get("location", location or "your area")
+
+            month = datetime.now().month
+            if month in (12, 1, 2):
+                season = "Winter"
+            elif month in (3, 4, 5):
+                season = "Summer"
+            elif month in (6, 7, 8, 9):
+                season = "Monsoon"
+            else:
+                season = "Post-Monsoon"
+
+            crops_db = {
+                "rice": {
+                    "sensitive_aqi": 100,
+                    "alert_message": "Rice paddy is sensitive to high pollution. PM2.5 can reduce photosynthesis.",
+                    "safe_activities": ["Early morning irrigation (5-7 AM)", "Evening fertilizer application"],
+                    "avoid_activities": ["Midday pesticide spraying", "Burning crop residue"],
+                    "optimal_conditions": "AQI < 100, Humidity > 60%",
+                },
+                "wheat": {
+                    "sensitive_aqi": 120,
+                    "alert_message": "Wheat growth is affected by prolonged exposure to high AQI levels.",
+                    "safe_activities": ["Morning harvesting", "Soil preparation"],
+                    "avoid_activities": ["Chemical spraying during high AQI"],
+                    "optimal_conditions": "AQI < 120, Cool mornings for harvesting",
+                },
+                "cotton": {
+                    "sensitive_aqi": 110,
+                    "alert_message": "Cotton requires clean air for optimal fiber quality.",
+                    "safe_activities": ["Early morning picking", "Drip irrigation"],
+                    "avoid_activities": ["Pesticide spraying when AQI > 100"],
+                    "optimal_conditions": "AQI < 110, Low humidity periods",
+                },
+                "sugarcane": {
+                    "sensitive_aqi": 130,
+                    "alert_message": "Sugarcane is moderately tolerant to pollution but growth can be affected.",
+                    "safe_activities": ["Irrigation anytime", "Harvesting in early hours"],
+                    "avoid_activities": ["Field burning"],
+                    "optimal_conditions": "AQI < 130, Adequate moisture",
+                },
+                "vegetables": {
+                    "sensitive_aqi": 80,
+                    "alert_message": "Leafy vegetables are highly sensitive to air pollution and can absorb pollutants.",
+                    "safe_activities": ["Protected cultivation", "Early morning watering"],
+                    "avoid_activities": ["Open field cultivation during high AQI", "Harvesting in polluted conditions"],
+                    "optimal_conditions": "AQI < 80, Use protective nets",
+                },
+                "pulses": {
+                    "sensitive_aqi": 100,
+                    "alert_message": "Pulses can tolerate moderate pollution but yields may decrease.",
+                    "safe_activities": ["Normal irrigation", "Organic fertilizer application"],
+                    "avoid_activities": ["Chemical spraying when AQI > 100"],
+                    "optimal_conditions": "AQI < 100, Well-drained soil",
+                },
+            }
+
+            crop_alerts: list[dict] = []
+            if crop:
+                crop_key = crop.lower()
+                crop_info = crops_db.get(crop_key)
+                if crop_info:
+                    if aqi_value > crop_info["sensitive_aqi"]:
+                        crop_alerts.append({
+                            "severity": "warning",
+                            "crop": crop,
+                            "message": f"⚠️ AQI harmful for {crop} — {crop_info['alert_message']}",
+                            "recommendation": f"Avoid: {', '.join(crop_info['avoid_activities'])}",
+                            "safe_actions": crop_info["safe_activities"],
+                        })
+                    else:
+                        crop_alerts.append({
+                            "severity": "safe",
+                            "crop": crop,
+                            "message": f"✅ AQI acceptable for {crop} cultivation",
+                            "recommendation": f"Safe activities: {', '.join(crop_info['safe_activities'])}",
+                            "optimal": crop_info["optimal_conditions"],
+                        })
+
+            if aqi_value <= 50:
+                general_recommendations = [
+                    {
+                        "title": "Excellent Conditions",
+                        "icon": "✅",
+                        "activities": [
+                            "All outdoor farming activities can proceed normally",
+                            "Ideal time for pesticide/fertilizer application",
+                            "Good conditions for transplanting seedlings",
+                            "Safe for livestock grazing",
+                        ],
+                    }
+                ]
+            elif aqi_value <= 100:
+                general_recommendations = [
+                    {
+                        "title": "Moderate Conditions",
+                        "icon": "🟢",
+                        "activities": [
+                            "Most farming activities can continue",
+                            "Prefer early morning (5-8 AM) for chemical spraying",
+                            "Use protective equipment for prolonged outdoor work",
+                            "Monitor sensitive crops closely",
+                        ],
+                    }
+                ]
+            elif aqi_value <= 150:
+                general_recommendations = [
+                    {
+                        "title": "Caution Required",
+                        "icon": "⚠️",
+                        "activities": [
+                            "Limit duration of outdoor work to essential tasks",
+                            "Avoid pesticide spraying — pollutants can react with chemicals",
+                            "Use drip irrigation instead of spray irrigation",
+                            "Keep livestock in covered areas",
+                            "Postpone harvesting if possible",
+                        ],
+                    }
+                ]
+            else:
+                general_recommendations = [
+                    {
+                        "title": "High Alert",
+                        "icon": "🚨",
+                        "activities": [
+                            "Minimize all outdoor farming activities",
+                            "Do not spray any chemicals — wait for AQI to improve",
+                            "Keep livestock indoors with adequate ventilation",
+                            "Use protective masks (N95) if outdoor work is essential",
+                            "Delay harvesting and field preparation",
+                            "Monitor crop health for pollution damage",
+                        ],
+                    }
+                ]
+
+            if season == "Winter":
+                seasonal_suggestions = [
+                    {
+                        "period": "Rabi Season (Winter Crops)",
+                        "crops": ["Wheat", "Barley", "Mustard", "Chickpea"],
+                        "sowing": "November-December is ideal for rabi crops",
+                        "harvest": "March-April harvesting period",
+                        "aqi_impact": "Winter often has higher AQI in North India — monitor daily",
+                        "tips": [
+                            "Sow wheat early if AQI forecasts show improvement",
+                            "Use mulching to protect crops from cold and pollution",
+                            "Avoid stubble burning — contributes to high AQI",
+                        ],
+                    }
+                ]
+            elif season == "Summer":
+                seasonal_suggestions = [
+                    {
+                        "period": "Summer Season",
+                        "crops": ["Rice preparation", "Cotton", "Pulses"],
+                        "sowing": "Prepare fields for kharif crops",
+                        "harvest": "Late rabi crop harvesting",
+                        "aqi_impact": "Better air quality expected, but dust storms possible",
+                        "tips": [
+                            "Complete harvesting early morning to avoid dust",
+                            "Prepare soil with organic matter",
+                            "Plan irrigation schedules efficiently",
+                        ],
+                    }
+                ]
+            elif season == "Monsoon":
+                seasonal_suggestions = [
+                    {
+                        "period": "Kharif Season (Monsoon Crops)",
+                        "crops": ["Rice", "Maize", "Cotton", "Soybean"],
+                        "sowing": "June-July is prime sowing time",
+                        "harvest": "September-October harvesting",
+                        "aqi_impact": "Rain helps clear pollutants — generally better air quality",
+                        "tips": [
+                            "Monsoon rains naturally improve AQI",
+                            "Focus on water management and drainage",
+                            "Watch for pest activity in humid conditions",
+                            "Good time for transplanting rice",
+                        ],
+                    }
+                ]
+            else:
+                seasonal_suggestions = [
+                    {
+                        "period": "Post-Monsoon Season",
+                        "crops": ["Vegetable crops", "Rabi preparation"],
+                        "sowing": "Prepare for rabi season sowing",
+                        "harvest": "Late kharif crop harvesting",
+                        "aqi_impact": "AQI may rise due to stubble burning — be cautious",
+                        "tips": [
+                            "Avoid burning crop residue — use as mulch instead",
+                            "Complete kharif harvesting quickly",
+                            "Prepare fields for winter crops",
+                            "Monitor AQI before chemical applications",
+                        ],
+                    }
+                ]
+
+            pollution_management = {
+                "preventive_measures": [
+                    "Plant tree barriers around fields (Neem, Peepal, Bamboo)",
+                    "Use organic farming methods to reduce chemical pollution",
+                    "Avoid crop residue burning — use decomposition methods",
+                    "Install drip irrigation to minimize water waste and dust",
+                ],
+                "aqi_monitoring_tips": [
+                    "Check AQI daily before planning outdoor activities",
+                    "Best farming hours: 5-8 AM when AQI is typically lower",
+                    "Avoid chemical application when AQI > 100",
+                    "Use the AirAware app for real-time location-based alerts",
+                ],
+                "crop_protection": [
+                    "Wash vegetables thoroughly before consumption or sale",
+                    "Use anti-transpirant sprays on sensitive crops during high AQI",
+                    "Consider protected cultivation for high-value crops",
+                    "Select pollution-tolerant crop varieties when possible",
+                ],
+            }
+
+            return {
+                "location": resolved_location,
+                "current_aqi": aqi_value,
+                "season": season,
+                "pm25": pm25_value,
+                "pm10": pm10_value,
+                "crop_specific_alerts": crop_alerts or None,
+                "general_recommendations": general_recommendations,
+                "seasonal_suggestions": seasonal_suggestions,
+                "pollution_management": pollution_management,
+                "timestamp": datetime.now().isoformat(),
+                "message": "✅ AirAware Farmer Support — Empowering agriculture with AQI intelligence",
+            }
+
+        except HTTPException:
+            raise
+        except Exception as farming_error:
+            logging.error("Error generating farming suggestions: %s", farming_error)
+            raise HTTPException(status_code=500, detail=f"Failed to generate farming suggestions: {farming_error}")
 
 # Prime database with initial AQI snapshot and schedule periodic refreshes.
 fetch_aqi_data()
@@ -682,9 +976,138 @@ async def get_tips(aqi: int = Query(...)):
 
 @app.get("/api/aqi/india")
 async def get_india_aqi():
-    """Get air quality data for major Indian cities"""
-    # In a real implementation, this would fetch from OpenAQ API
-    # For now, return mock data for demonstration
+    """Get real-time air quality data for Indian stations using WAQI geo search."""
+    india_aqi_data: list[dict] = []
+    seen_locations: set[str] = set()
+
+    try:
+        geo_samples = [
+            (28.7, 77.2),  # Delhi
+            (30.7, 76.8),  # Chandigarh
+            (26.9, 75.8),  # Jaipur
+            (26.8, 80.9),  # Lucknow
+            (25.6, 85.1),  # Patna
+            (31.6, 74.9),  # Amritsar
+            (19.1, 72.9),  # Mumbai
+            (23.0, 72.6),  # Ahmedabad
+            (21.2, 72.8),  # Surat
+            (18.5, 73.9),  # Pune
+            (15.4, 73.8),  # Goa
+            (12.97, 77.6),  # Bengaluru
+            (13.1, 80.3),  # Chennai
+            (11.0, 76.9),  # Coimbatore
+            (17.4, 78.5),  # Hyderabad
+            (9.9, 76.3),   # Kochi
+            (8.5, 76.9),   # Thiruvananthapuram
+            (15.9, 79.7),  # Nellore
+            (22.6, 88.4),  # Kolkata
+            (20.3, 85.8),  # Bhubaneswar
+            (26.2, 92.9),  # Guwahati
+            (23.3, 85.3),  # Ranchi
+            (23.3, 77.4),  # Bhopal
+            (21.2, 81.6),  # Raipur
+            (21.1, 79.1),  # Nagpur
+            (22.7, 75.9),  # Indore
+            (26.4, 80.3),  # Kanpur
+            (28.7, 77.4),  # Ghaziabad/Noida
+            (28.4, 77.3),  # Faridabad
+            (28.5, 77.1),  # Gurugram
+        ]
+
+        logging.info("Fetching WAQI geo samples for %s Indian locations", len(geo_samples))
+
+        for lat, lng in geo_samples:
+            try:
+                url = f"https://api.waqi.info/feed/geo:{lat};{lng}/"
+                response = requests.get(url, params={"token": api_token}, timeout=5)
+
+                if response.status_code != 200:
+                    continue
+
+                payload = response.json()
+                if payload.get("status") != "ok":
+                    continue
+
+                station = payload.get("data", {})
+                aqi_value = station.get("aqi", 0)
+                if aqi_value in ("-", None) or (isinstance(aqi_value, int) and aqi_value < 0):
+                    continue
+
+                city_meta = station.get("city", {})
+                coords = city_meta.get("geo", [lat, lng])
+                location_name = city_meta.get("name", "Unknown")
+
+                location_key = f"{location_name}_{coords[0]:.3f}_{coords[1]:.3f}"
+                if location_key in seen_locations:
+                    continue
+
+                seen_locations.add(location_key)
+
+                pm25_value = 0
+                iaqi = station.get("iaqi", {})
+                if isinstance(iaqi, dict) and "pm25" in iaqi:
+                    pm25_value = iaqi["pm25"].get("v", 0)
+
+                india_aqi_data.append({
+                    "location": location_name,
+                    "lat": coords[0],
+                    "lng": coords[1],
+                    "aqi": aqi_value if isinstance(aqi_value, int) else 0,
+                    "pm25": pm25_value,
+                    "lastUpdated": station.get("time", {}).get("iso", datetime.now().isoformat()),
+                })
+            except Exception as geo_error:
+                logging.debug("Geo fetch failed for (%s, %s): %s", lat, lng, geo_error)
+                continue
+
+        logging.info("Collected %s unique WAQI stations", len(india_aqi_data))
+    except Exception as fetch_error:
+        logging.error("Failed to aggregate India AQI data: %s", fetch_error)
+
+    if india_aqi_data:
+        return india_aqi_data
+
+    logging.warning("WAQI dynamic fetch failed, falling back to predefined cities")
+    fallback_data: list[dict] = []
+
+    for city in india_cities:
+        try:
+            response = requests.get(
+                f"https://api.waqi.info/feed/{city['query']}/",
+                params={"token": api_token},
+                timeout=5,
+            )
+
+            if response.status_code != 200:
+                continue
+
+            payload = response.json()
+            if payload.get("status") != "ok":
+                continue
+
+            station = payload.get("data", {})
+            pm25_value = 0
+            iaqi = station.get("iaqi", {})
+            if isinstance(iaqi, dict) and "pm25" in iaqi:
+                pm25_value = iaqi["pm25"].get("v", 0)
+
+            geo_coords = station.get("city", {}).get("geo", [city.get("lat", 0), city.get("lng", 0)])
+
+            fallback_data.append({
+                "location": city["name"],
+                "lat": city.get("lat", geo_coords[0]),
+                "lng": city.get("lng", geo_coords[1]),
+                "aqi": station.get("aqi", 0) if isinstance(station.get("aqi"), int) else 0,
+                "pm25": pm25_value,
+                "lastUpdated": station.get("time", {}).get("iso", datetime.now().isoformat()),
+            })
+        except Exception as city_error:
+            logging.debug("Fallback city fetch failed for %s: %s", city["name"], city_error)
+
+    if fallback_data:
+        return fallback_data
+
+    logging.warning("Returning static fallback AQI data for India map")
     return [
         {
             "location": "Delhi",
@@ -692,7 +1115,7 @@ async def get_india_aqi():
             "lng": 77.2090,
             "aqi": 156,
             "pm25": 95,
-            "lastUpdated": datetime.now().isoformat()
+            "lastUpdated": datetime.now().isoformat(),
         },
         {
             "location": "Mumbai",
@@ -700,7 +1123,7 @@ async def get_india_aqi():
             "lng": 72.8777,
             "aqi": 89,
             "pm25": 42,
-            "lastUpdated": datetime.now().isoformat()
+            "lastUpdated": datetime.now().isoformat(),
         },
         {
             "location": "Bangalore",
@@ -708,7 +1131,7 @@ async def get_india_aqi():
             "lng": 77.5946,
             "aqi": 65,
             "pm25": 32,
-            "lastUpdated": datetime.now().isoformat()
+            "lastUpdated": datetime.now().isoformat(),
         },
         {
             "location": "Kolkata",
@@ -716,7 +1139,7 @@ async def get_india_aqi():
             "lng": 88.3639,
             "aqi": 142,
             "pm25": 78,
-            "lastUpdated": datetime.now().isoformat()
+            "lastUpdated": datetime.now().isoformat(),
         },
         {
             "location": "Chennai",
@@ -724,7 +1147,7 @@ async def get_india_aqi():
             "lng": 80.2707,
             "aqi": 92,
             "pm25": 45,
-            "lastUpdated": datetime.now().isoformat()
+            "lastUpdated": datetime.now().isoformat(),
         },
         {
             "location": "Coimbatore",
@@ -732,7 +1155,7 @@ async def get_india_aqi():
             "lng": 76.9558,
             "aqi": 58,
             "pm25": 22,
-            "lastUpdated": datetime.now().isoformat()
+            "lastUpdated": datetime.now().isoformat(),
         },
         {
             "location": "Madurai",
@@ -740,7 +1163,7 @@ async def get_india_aqi():
             "lng": 78.1198,
             "aqi": 110,
             "pm25": 60,
-            "lastUpdated": datetime.now().isoformat()
+            "lastUpdated": datetime.now().isoformat(),
         },
         {
             "location": "Tiruchirappalli",
@@ -748,7 +1171,7 @@ async def get_india_aqi():
             "lng": 78.7047,
             "aqi": 135,
             "pm25": 80,
-            "lastUpdated": datetime.now().isoformat()
+            "lastUpdated": datetime.now().isoformat(),
         },
         {
             "location": "Salem",
@@ -756,7 +1179,7 @@ async def get_india_aqi():
             "lng": 78.1460,
             "aqi": 78,
             "pm25": 34,
-            "lastUpdated": datetime.now().isoformat()
+            "lastUpdated": datetime.now().isoformat(),
         },
         {
             "location": "Erode",
@@ -764,7 +1187,7 @@ async def get_india_aqi():
             "lng": 77.7172,
             "aqi": 48,
             "pm25": 16,
-            "lastUpdated": datetime.now().isoformat()
+            "lastUpdated": datetime.now().isoformat(),
         },
         {
             "location": "Puducherry",
@@ -772,8 +1195,8 @@ async def get_india_aqi():
             "lng": 79.8083,
             "aqi": 65,
             "pm25": 28,
-            "lastUpdated": datetime.now().isoformat()
-        }
+            "lastUpdated": datetime.now().isoformat(),
+        },
     ]
 
 @app.post("/submit_feedback")
