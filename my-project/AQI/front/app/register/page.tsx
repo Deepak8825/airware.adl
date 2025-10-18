@@ -188,7 +188,7 @@ const RegisterPage = () => {
                 <form className="space-y-5" onSubmit={handleSubmit}>
                   <div className="space-y-5">
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1" htmlFor="name">
+                      <label className="text-sm font-semibold text-white flex items-center gap-1" htmlFor="name">
                         {t.auth.name} <span className="text-red-500">*</span>
                       </label>
                       <Input
@@ -202,7 +202,7 @@ const RegisterPage = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1" htmlFor="email">
+                      <label className="text-sm font-semibold text-white flex items-center gap-1" htmlFor="email">
                         {t.auth.email} <span className="text-red-500">*</span>
                       </label>
                       <Input
@@ -219,7 +219,7 @@ const RegisterPage = () => {
 
                   <div className="grid gap-5 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1" htmlFor="password">
+                      <label className="text-sm font-semibold text-white flex items-center gap-1" htmlFor="password">
                         {t.auth.password} <span className="text-red-500">*</span>
                       </label>
                       <Input
@@ -233,7 +233,7 @@ const RegisterPage = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1" htmlFor="confirmPassword">
+                      <label className="text-sm font-semibold text-white flex items-center gap-1" htmlFor="confirmPassword">
                         {t.auth.confirmPassword} <span className="text-red-500">*</span>
                       </label>
                       <Input
@@ -254,7 +254,7 @@ const RegisterPage = () => {
                     </p>
                     <div className="grid gap-5 md:grid-cols-2">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="city">
+                        <label className="text-sm font-medium text-white" htmlFor="city">
                           City
                         </label>
                         <Input
@@ -266,7 +266,7 @@ const RegisterPage = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="country">
+                        <label className="text-sm font-medium text-white" htmlFor="country">
                           Country
                         </label>
                         <Input
@@ -280,7 +280,7 @@ const RegisterPage = () => {
                     </div>
 
                     <div className="space-y-2 mt-5">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-200" htmlFor="occupation">
+                      <label className="text-sm font-medium text-white" htmlFor="occupation">
                         Occupation
                       </label>
                       <Input

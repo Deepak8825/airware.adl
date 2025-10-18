@@ -171,8 +171,8 @@ const LoginPage = () => {
 
                 <form className="space-y-6" onSubmit={handleSubmit}>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2" htmlFor="email">
-                      <Mail className="w-4 h-4 text-gray-500" />
+                    <label className="text-sm font-semibold text-white flex items-center gap-2" htmlFor="email">
+                      <Mail className="w-4 h-4 text-gray-300" />
                       {t.auth.email || "Email"}
                     </label>
                     <Input
@@ -187,8 +187,8 @@ const LoginPage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2" htmlFor="password">
-                      <Lock className="w-4 h-4 text-gray-500" />
+                    <label className="text-sm font-semibold text-white flex items-center gap-2" htmlFor="password">
+                      <Lock className="w-4 h-4 text-gray-300" />
                       {t.auth.password || "Password"}
                     </label>
                     <Input
