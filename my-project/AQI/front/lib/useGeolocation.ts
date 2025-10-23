@@ -27,52 +27,88 @@ export const useGeolocation = () => {
     isSupported: typeof navigator !== 'undefined' && 'geolocation' in navigator,
   });
 
-  // Reverse geocoding to get address from coordinates using WAQI API
+  // Reverse geocoding to get address from coordinates
   const reverseGeocode = async (lat: number, lng: number): Promise<Partial<LocationData>> => {
     try {
-      // Get location from our backend (which uses WAQI) - with timeout
-      const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      // Use Nominatim OpenStreetMap reverse geocoding (free, no API key needed)
+      const geoResponse = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'AirWare-App/1.0'
+          }
+        }
+      );
       
-      const response = await fetch(`${backendBase}/api/aqi?lat=${lat}&lng=${lng}`, {
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        const data = await response.json();
+      if (geoResponse.ok) {
+        const geoData = await geoResponse.json();
+        const address = geoData.address || {};
         
-        // WAQI returns the actual monitoring station name and location
+        // Extract city name (try multiple fields for better coverage)
+        const city = address.city || 
+                     address.town || 
+                     address.village || 
+                     address.municipality || 
+                     address.county || 
+                     address.state_district ||
+                     'Unknown City';
+        
+        const country = address.country || 'Unknown Country';
+        
+        // Build a nice address string
+        const addressParts = [
+          city,
+          address.state || address.region,
+          country
+        ].filter(Boolean);
+        
         return {
-          city: data.location || 'Unknown City',
-          country: 'India',
-          address: data.location || 'Location detected'
+          city,
+          country,
+          address: addressParts.join(', ')
         };
       }
       
-      // Fallback to generic geocoding if WAQI fails
-      const geoResponse = await fetch(
+      // Fallback to BigDataCloud if Nominatim fails
+      const fallbackResponse = await fetch(
         `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
       );
       
-      if (!geoResponse.ok) throw new Error('Geocoding failed');
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json();
+        
+        return {
+          city: fallbackData.city || fallbackData.locality || 'Unknown City',
+          country: fallbackData.countryName || 'Unknown Country',
+          address: `${fallbackData.city || fallbackData.locality}, ${fallbackData.principalSubdivision || fallbackData.countryName}` || 'Location detected'
+        };
+      }
       
-      const geoData = await geoResponse.json();
-      
-      return {
-        city: geoData.city || geoData.locality || 'Unknown City',
-        country: geoData.countryName || 'Unknown Country',
-        address: geoData.localityInfo?.administrative?.[2]?.name || 
-                geoData.localityInfo?.administrative?.[1]?.name || 
-                `${geoData.city}, ${geoData.countryName}` || 'Unknown Address'
-      };
+      throw new Error('All geocoding services failed');
     } catch (error) {
       console.error('Reverse geocoding error:', error);
+      
+      // As last resort, try to get location from backend WAQI
+      try {
+        const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const response = await fetch(`${backendBase}/api/aqi?lat=${lat}&lng=${lng}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          return {
+            city: data.location || 'Detected Location',
+            country: 'India',
+            address: data.location || 'Location detected'
+          };
+        }
+      } catch (backendError) {
+        console.error('Backend geocoding also failed:', backendError);
+      }
+      
       return {
-        city: 'Unknown City',
-        country: 'Unknown Country',
-        address: 'Location detected, address unavailable'
+        city: 'Detected Location',
+        country: 'Country',
+        address: `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`
       };
     }
   };
