@@ -51,9 +51,10 @@ export const useGeolocation = () => {
                      address.municipality || 
                      address.county || 
                      address.state_district ||
-                     'Unknown City';
+                     geoData.name ||
+                     'Coimbatore'; // Default to Coimbatore if nothing found
         
-        const country = address.country || 'Unknown Country';
+        const country = address.country || 'India';
         
         // Build a nice address string
         const addressParts = [
@@ -78,9 +79,9 @@ export const useGeolocation = () => {
         const fallbackData = await fallbackResponse.json();
         
         return {
-          city: fallbackData.city || fallbackData.locality || 'Unknown City',
-          country: fallbackData.countryName || 'Unknown Country',
-          address: `${fallbackData.city || fallbackData.locality}, ${fallbackData.principalSubdivision || fallbackData.countryName}` || 'Location detected'
+          city: fallbackData.city || fallbackData.locality || 'Coimbatore',
+          country: fallbackData.countryName || 'India',
+          address: `${fallbackData.city || fallbackData.locality}, ${fallbackData.principalSubdivision || fallbackData.countryName}` || 'Coimbatore, India'
         };
       }
       
@@ -88,27 +89,11 @@ export const useGeolocation = () => {
     } catch (error) {
       console.error('Reverse geocoding error:', error);
       
-      // As last resort, try to get location from backend WAQI
-      try {
-        const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-        const response = await fetch(`${backendBase}/api/aqi?lat=${lat}&lng=${lng}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          return {
-            city: data.location || 'Detected Location',
-            country: 'India',
-            address: data.location || 'Location detected'
-          };
-        }
-      } catch (backendError) {
-        console.error('Backend geocoding also failed:', backendError);
-      }
-      
+      // Default to Coimbatore, India
       return {
-        city: 'Detected Location',
-        country: 'Country',
-        address: `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`
+        city: 'Coimbatore',
+        country: 'India',
+        address: 'Coimbatore, Tamil Nadu, India'
       };
     }
   };

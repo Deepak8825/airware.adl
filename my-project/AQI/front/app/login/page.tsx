@@ -56,11 +56,18 @@ const LoginPage = () => {
     setIsSubmitting(true);
 
     try {
+      // Add timeout to login request (10 seconds max)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(`${backendBase}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const message = response.status === 401 ? "Invalid email or password" : "Login failed";
@@ -76,8 +83,12 @@ const LoginPage = () => {
         throw new Error("No token received");
       }
     } catch (loginError) {
-      const message = loginError instanceof Error ? loginError.message : "Unable to login";
-      setError(message);
+      if (loginError instanceof Error && loginError.name === 'AbortError') {
+        setError("Login is taking too long. Please check your connection.");
+      } else {
+        const message = loginError instanceof Error ? loginError.message : "Unable to login";
+        setError(message);
+      }
     } finally {
       setIsSubmitting(false);
     }
